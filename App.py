@@ -80,3 +80,49 @@ else:
             else:
                 st.error("You must pick exactly 11 players!")
     
+# --- ADD THIS TO TAB 2 (Leaderboard) ---
+with tab2:
+    st.header("🏆 League Leaderboard")
+    
+    # Load the latest saved data
+    all_teams = load_data()
+    
+    # Create a list to store the scores
+    leaderboard_data = []
+    
+    for member_name, team_info in all_teams.items():
+        squad = team_info.get("squad", [])
+        captain = team_info.get("captain", "Not Set")
+        
+        # Placeholder: In a live match, we would pull real points here
+        points = 0 
+        
+        leaderboard_data.append({
+            "Member": member_name,
+            "Total Points": points,
+            "Captain": captain,
+            "Squad Size": len(squad)
+        })
+    
+    # Display the Table
+    df = pd.DataFrame(leaderboard_data).sort_values(by="Total Points", ascending=False)
+    st.table(df)
+
+    # --- SQUAD VIEW SECTION ---
+    st.divider()
+    st.subheader("🔍 Member Squads")
+    view_user = st.selectbox("View Squad For:", list(MEMBER_POOLS.keys()), key="view_squad")
+    
+    user_squad = all_teams.get(view_user, {}).get("squad", [])
+    user_cap = all_teams.get(view_user, {}).get("captain", "")
+    
+    if user_squad:
+        st.write(f"**{view_user}'s Active XI:**")
+        cols = st.columns(2)
+        for i, player in enumerate(user_squad):
+            with cols[i % 2]:
+                label = f"⭐ {player} (C)" if player == user_cap else player
+                st.info(label)
+    else:
+        st.warning(f"{view_user} hasn't submitted a team yet!")
+                       
