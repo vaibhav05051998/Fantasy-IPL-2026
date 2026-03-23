@@ -8,7 +8,7 @@ import os
 # --- 1. CONFIG & DATA ---
 IST = pytz.timezone('Asia/Kolkata')
 
-# EXACT MAPPING FROM YOUR EXCEL DATA
+# SYNCED PLAYER POOLS (Verified against your Excel)
 MEMBER_POOLS = {
     'Kazim': ['Rajat Patidar', 'Devdutt Padikkal', 'Shimron Hetmyer', 'Dhruv Jurel', 'Vaibhav Suryavanshi', 'Priyansh Arya', 'Ryan Rickelton', 'Aiden Markram', 'Angkrish Raghuvanshi', 'Shahrukh Khan', 'Nitish Rana', 'Prashant Veer', 'Anshul Kambhoj', 'Axar Patel', 'Gudakesh Motie', 'Will Jacks', 'Marcus Stoinis', 'Shashank Singh', 'Nitish Kumar Reddy', 'Pat Cummins', 'Jacob Duffy', 'Josh Hazlewood'],
     'Adi': ['Philip Salt', 'Yashasvi Jaiswal', 'Prabhsimran Singh', 'Nicholas Pooran', 'Tim Seifert', 'Shubman Gill', 'Ayush Mhatre', 'Ashutosh Sharma', 'Rahul Tewatia', 'Jasprit Bumrah', 'Ravindra Jadeja', 'Abhishek Sharma', 'Harshal Patel', 'Jofra Archer', 'Yuzvendra Chahal', 'Allah Ghazanfar', 'Digvesh Rathi', 'Prasidh Krishna', 'Umran Malik', 'Vipraj Nigam'],
@@ -17,132 +17,105 @@ MEMBER_POOLS = {
     'Nagle': ['Heinrich Klaasen', 'Virat Kohli', 'Suryakumar Yadav', 'Rinku Singh', 'KL Rahul', 'Sanju Samson', 'Cameron Green', 'Tilak Varma', 'Marco Jansen', 'Varun Chakaravarthy', 'Lungi Ngidi', 'Jason Holder', 'Mitchell Starc', 'Josh Inglis', 'Ramandeep Singh']
 }
 
-MASTER_DATA_FILE = 'master_tournament_data.json'
+DB_FILE = 'tournament_db.json'
 
-# --- 2. CSS FOR BOTTOM TABS ---
-st.set_page_config(page_title="Inner Circle IPL", layout="wide")
-
-st.markdown("""
-    <style>
-    /* Force Sidebar to Bottom on Mobile */
-    @media (max-width: 640px) {
-        section[data-testid="stSidebar"] {
-            bottom: 0;
-            top: auto;
-            height: 80px !important;
-            width: 100% !important;
-            position: fixed !important;
-            z-index: 999999;
-            background-color: #0e1117 !important;
-            border-top: 1px solid #31333F;
-        }
-        [data-testid="stSidebarNav"] {
-            display: flex;
-            flex-direction: row !important;
-            justify-content: space-around;
-        }
-    }
-    /* Simple styling for the tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background-color: #111;
-        z-index: 1000;
-        display: flex;
-        justify-content: center;
-        border-top: 2px solid #ff4b4b;
-    }
-    </style>
-    """, unsafe_allow_value=True)
-
-# --- 3. DATABASE FUNCTIONS ---
 def load_db():
-    if os.path.exists(MASTER_DATA_FILE):
-        with open(MASTER_DATA_FILE, 'r') as f: return json.load(f)
-    return {
-        "weekly_selections": {}, 
-        "player_scores": {},    
-        "cumulative_totals": {m: 0 for m in MEMBER_POOLS.keys()}
-    }
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, 'r') as f: return json.load(f)
+    return {"selections": {}, "scores": {}, "totals": {m: 0 for m in MEMBER_POOLS.keys()}}
 
 def save_db(data):
-    with open(MASTER_DATA_FILE, 'w') as f: json.dump(data, f)
+    with open(DB_FILE, 'w') as f: json.dump(data, f)
 
+# --- 2. APP UI ---
+st.set_page_config(page_title="Inner Circle IPL", layout="wide")
 db = load_db()
-week = "1" # Set manually or use function from previous turn
+week = "1" # Set manually for testing
 
-# --- 4. NAVIGATION (THE TABS) ---
-tab_selection, tab_standings, tab_history, tab_admin = st.tabs(["📋 Selection", "📊 Standings", "📜 History", "⚙️ Admin"])
+st.title(f"🏆 Inner Circle IPL 2026")
 
-# User selection moved to top for easy mobile access
-user = st.selectbox("Switch User:", list(MEMBER_POOLS.keys()))
+# Navigation Tabs at the Top (Stable for Python 3.14)
+tab1, tab2, tab3, tab4 = st.tabs(["📋 Selection", "📊 Leaderboard", "📜 History", "⚙️ Admin"])
 
 # --- TAB 1: SELECTION ---
-with tab_selection:
-    st.header(f"Week {week} Selection")
-    # Toggle this for locking:
-    is_locked = False 
+with tab1:
+    user = st.selectbox("Select Your Name:", list(MEMBER_POOLS.keys()), key="user_sel")
+    pool = MEMBER_POOLS[user]
     
-    if is_locked:
-        st.warning("Locked! Viewing Squad.")
-        sdata = db["weekly_selections"].get(week, {}).get(user, {"squad": [], "cap": ""})
-        for p in sdata["squad"]: st.write(f"- {p}")
-    else:
-        pool = MEMBER_POOLS[user]
-        selected = []
-        cols = st.columns(2)
-        for i, p in enumerate(pool):
-            with cols[i%2]:
-                if st.checkbox(p, key=f"{user}_{p}", value=(p in db["weekly_selections"].get(week, {}).get(user, {}).get("squad", []))):
-                    selected.append(p)
-        
-        if len(selected) == 11:
-            cap = st.selectbox("Captain:", selected)
-            if st.button("Submit 11"):
-                if week not in db["weekly_selections"]: db["weekly_selections"][week] = {}
-                db["weekly_selections"][week][user] = {"squad": selected, "cap": cap}
+    st.subheader(f"Week {week} Selection for {user}")
+    
+    # Pre-load saved team
+    current_team = db["selections"].get(week, {}).get(user, {"squad": [], "cap": ""})
+    
+    selected = []
+    cols = st.columns(2)
+    for i, p in enumerate(pool):
+        with cols[i % 2]:
+            if st.checkbox(p, key=f"chk_{user}_{p}", value=(p in current_team["squad"])):
+                selected.append(p)
+    
+    st.divider()
+    st.write(f"Players Selected: **{len(selected)} / 11**")
+    
+    if len(selected) > 0:
+        cap = st.selectbox("Choose Captain (2x):", selected)
+        if st.button("Save Week " + week + " Squad"):
+            if len(selected) == 11:
+                if week not in db["selections"]: db["selections"][week] = {}
+                db["selections"][week][user] = {"squad": selected, "cap": cap}
                 save_db(db)
-                st.success("Locked!")
+                st.success("Squad Locked!")
+                st.balloons()
+            else:
+                st.error("Select exactly 11 players.")
 
-# --- TAB 2: STANDINGS ---
-with tab_standings:
-    st.header("Leaderboard")
-    rows = []
+# --- TAB 2: LEADERBOARD ---
+with tab2:
+    st.subheader(f"Week {week} Standings")
+    lb = []
     for m in MEMBER_POOLS.keys():
         w_pts = 0
-        m_data = db["weekly_selections"].get(week, {}).get(m, {"squad": [], "cap": ""})
+        m_data = db["selections"].get(week, {}).get(m, {"squad": [], "cap": ""})
         for p in m_data["squad"]:
-            p_total = sum(db["player_scores"].get(p, {}).values())
-            w_pts += (p_total * 2) if p == m_data["cap"] else p_total
-        rows.append({"Member": m, "Weekly": w_pts, "Total": db["cumulative_totals"][m] + w_pts})
-    st.table(pd.DataFrame(rows).sort_values("Total", ascending=False))
+            p_pts = sum(db["scores"].get(p, {}).values())
+            w_pts += (p_pts * 2) if p == m_data["cap"] else p_pts
+        
+        lb.append({"Member": m, "Weekly Pts": w_pts, "Tournament Total": db["totals"][m] + w_pts})
+    
+    st.table(pd.DataFrame(lb).sort_values("Tournament Total", ascending=False))
 
 # --- TAB 3: HISTORY ---
-with tab_history:
-    st.header("Match Logs")
-    all_p = sorted(list(db["player_scores"].keys()))
-    if all_p:
-        p_look = st.selectbox("Search Player History:", all_p)
-        for m_id, pts in db["player_scores"].get(p_look, {}).items():
-            st.write(f"🔹 {m_id}: **{pts} pts**")
+with tab3:
+    st.subheader("Player Match Logs")
+    all_scored_players = sorted(list(db["scores"].keys()))
+    if all_scored_players:
+        p_name = st.selectbox("View Player Points History:", all_scored_players)
+        for match, pts in db["scores"].get(p_name, {}).items():
+            st.write(f"🏏 {match}: **{pts} pts**")
+    else:
+        st.info("No match points recorded yet.")
 
 # --- TAB 4: ADMIN ---
-with tab_admin:
-    st.header("Admin Scoring")
-    p_target = st.selectbox("Player:", sorted([p for pool in MEMBER_POOLS.values() for p in pool]))
-    match_name = st.text_input("Match (e.g. MI vs RCB)")
-    pts_gain = st.number_input("Points Scored:", step=1)
+with tab4:
+    st.subheader("Admin Scoring Panel")
+    all_players = sorted([p for pool in MEMBER_POOLS.values() for p in pool])
+    target = st.selectbox("Select Player:", all_players)
+    match_id = st.text_input("Match Detail (e.g., Match 1 - RCB vs MI)")
+    score = st.number_input("Points Scored:", step=1)
     
-    if st.button("Add Points"):
-        if p_target not in db["player_scores"]: db["player_scores"][p_target] = {}
-        db["player_scores"][p_target][match_name] = pts_gain
+    if st.button("Add Match Score"):
+        if target not in db["scores"]: db["scores"][target] = {}
+        db["scores"][target][match_id] = score
         save_db(db)
-        st.success("Done!")
+        st.success(f"Added {score} pts to {target}")
 
-    if st.button("🏁 End Week & Add to Total"):
+    st.divider()
+    if st.button("🏁 Finalize Week & Add to Totals"):
         for m in MEMBER_POOLS.keys():
-            # (Calculation logic same as Standings)
-            pass
-        st.warning("Weekly scores moved to Totals. Player daily scores reset.")
+            m_data = db["selections"].get(week, {}).get(m, {"squad": [], "cap": ""})
+            w_pts = sum([(sum(db["scores"].get(p, {}).values()) * 2 if p == m_data["cap"] else sum(db["scores"].get(p, {}).values())) for p in m_data["squad"]])
+            db["totals"][m] += w_pts
+        
+        db["scores"] = {} # Reset daily scores
+        save_db(db)
+        st.warning("Week finalized. Weekly scores added to totals and player scores reset.")
