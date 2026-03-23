@@ -47,8 +47,8 @@ st.set_page_config(page_title="Inner Circle Pro", layout="wide")
 db = load_db()
 week = str(get_week())
 now = datetime.datetime.now(IST)
-is_locked = (now.weekday() == 5 and now.hour >= 19) or (now.weekday() in [6,0,1,2,3,4])
-
+#is_locked = (now.weekday() == 5 and now.hour >= 19) or (now.weekday() in [6,0,1,2,3,4])
+is_locked = False
 st.title(f"🏆 Inner Circle: Week {week}")
 page = st.sidebar.radio("Menu", ["Selection", "Live Standings", "History & Match Logs", "Admin Panel"])
 user = st.sidebar.selectbox("User:", list(MEMBER_POOLS.keys()))
