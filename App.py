@@ -71,4 +71,115 @@ MEMBER_POOLS = {
     'Adi': ['Philip Salt', 'Yashasvi Jaiswal', 'Prabhsimran Singh', 'Nicholas Pooran', 'Tim Seifert', 'Shubman Gill', 'Ayush Mhatre', 'Ashutosh Sharma', 'Rahul Tewatia', 'Jasprit Bumrah', 'Ravindra Jadeja', 'Abhishek Sharma', 'Harshal Patel', 'Jofra Archer', 'Yuzvendra Chahal', 'Allah Ghazanfar', 'Digvesh Rathi', 'Prasidh Krishna', 'Umran Malik', 'Vipraj Nigam'],
     'Aatish': ['Tim David', 'Jitesh Sharma', 'Nehal Wadhera', 'Quinton de Kock', 'Sherfane Rutherford', 'Rohit Sharma', 'Rishabh Pant', 'Abdul Samad', 'Matthew Breetzke', 'Abishek Porel', 'Tristan Stubbs', 'Pathum Nissanka', 'MS Dhoni', 'Dewald Brevis', 'Shivam Dube', 'Rashid Khan', 'Sunil Narine', 'Shahbaz Ahmed', 'Hardik Pandya', 'Donovan Ferreira', 'Jacob Bethell'],
     'Shreejith': ['Travis Head', 'Ishan Kishan', 'Riyan Parag', 'Shreyas Iyer', 'Ayush Badoni', 'Himmat Singh', 'Manish Pandey', 'Ajinkya Rahane', 'Sai Sudharsan', 'Vishnu Vinod', 'Sarfaraz Khan', 'Ruturaj Gaikwad', 'Ramakrishna Ghosh', 'Mitchell Marsh', 'Krunal Pandya', 'Venkatesh Iyer', 'Jaydev Unadkat', 'Suyash Sharma', 'Sandeep Sharma', 'Arshdeep Singh', 'Trent Boult'],
-    'Nagle': ['Heinrich Klaasen', 'Virat Kohli', 'Suryakumar Yadav', 'Rinku Singh', 'KL Rahul', 'Sanju Samson', 'Cameron Green', 'Tilak Varma', 'Marco Jansen', 'Varun
+    'Nagle': ['Heinrich Klaasen', 'Virat Kohli', 'Suryakumar Yadav', 'Rinku Singh', 'KL Rahul', 'Sanju Samson', 'Cameron Green', 'Tilak Varma', 'Marco Jansen', 'Varun Chakaravarthy', 'Lungi Ngidi', 'Jason Holder', 'Mitchell Starc', 'Josh Inglis', 'Ramandeep Singh']
+}
+
+DB_FILE = 'tournament_db.json'
+
+def load_db():
+    if os.path.exists(DB_FILE):
+        with open(DB_FILE, 'r') as f: return json.load(f)
+    return {"selections": {}, "scores": {}, "totals": {m: 0 for m in MEMBER_POOLS.keys()}, "force_unlock": True}
+
+def save_db(data):
+    with open(DB_FILE, 'w') as f: json.dump(data, f)
+
+# --- 2. APP UI ---
+st.set_page_config(page_title="Inner Circle IPL", layout="wide")
+db = load_db()
+
+# Main Tabs (This ensures Selection is visible)
+tab1, tab2, tab3, tab4 = st.tabs(["📋 Team Selection", "📊 Leaderboard", "📜 Match Logs", "🛡️ Admin Console"])
+
+# --- TAB 1: SELECTION ---
+with tab1:
+    user = st.selectbox("Select User:", list(MEMBER_POOLS.keys()))
+    pool = MEMBER_POOLS[user]
+    
+    st.info("Rule: 1 WK, 5 BOWL, 5 BAT (Total 11)")
+    saved_squad = db["selections"].get("1", {}).get(user, {}).get("squad", [])
+    
+    selected_names = []
+    counts = {"BAT": 0, "BOWL": 0, "WK": 0}
+    
+    cols = st.columns(2)
+    for i, p_name in enumerate(pool):
+        role = PLAYER_MASTER.get(p_name, {}).get('role', 'BAT')
+        with cols[i % 2]:
+            if st.checkbox(f"{p_name} ({role})", key=f"sel_{user}_{p_name}", value=(p_name in saved_squad)):
+                selected_names.append(p_name)
+                counts[role] += 1
+    
+    st.write(f"**Current:** WK: {counts['WK']} | BOWL: {counts['BOWL']} | BAT: {counts['BAT']}")
+    
+    if len(selected_names) > 0:
+        cap = st.selectbox("Assign Captain (2x):", selected_names)
+        if st.button("Save Squad"):
+            if len(selected_names) == 11 and counts['WK'] >= 1 and counts['BOWL'] >= 5:
+                if "1" not in db["selections"]: db["selections"]["1"] = {}
+                db["selections"]["1"][user] = {"squad": selected_names, "cap": cap}
+                save_db(db)
+                st.success("Squad Saved!")
+            else:
+                st.error("Check requirements: 11 players, 1 WK, 5 Bowlers.")
+
+# --- TAB 2 & 3: LEADERBOARD & LOGS ---
+with tab2:
+    st.subheader("Leaderboard")
+    lb_data = []
+    for m in MEMBER_POOLS.keys():
+        w_pts = 0
+        m_data = db["selections"].get("1", {}).get(m, {"squad": [], "cap": ""})
+        for p in m_data["squad"]:
+            p_pts = sum(db["scores"].get(p, {}).values())
+            w_pts += (p_pts * 2) if p == m_data["cap"] else p_pts
+        lb_data.append({"Member": m, "Weekly Pts": w_pts, "Total": db["totals"][m] + w_pts})
+    st.table(pd.DataFrame(lb_data).sort_values("Total", ascending=False))
+
+with tab3:
+    all_scored = sorted(list(db["scores"].keys()))
+    if all_scored:
+        p_query = st.selectbox("Search Player History:", all_scored)
+        for m, s in db["scores"].get(p_query, {}).items():
+            st.write(f"🔹 {m}: **{s} pts**")
+
+# --- TAB 4: ADMIN CONSOLE (SMART SCORING) ---
+with tab4:
+    st.header("Admin Scoring Dashboard")
+    selected_match = st.selectbox("🎯 Select Match:", IPL_SCHEDULE)
+    match_part = selected_match.split(":")[1].split("(")[0].strip()
+    team_a, team_b = match_part.split(" vs ")
+    match_players = [n for n, i in PLAYER_MASTER.items() if i['team'] in [team_a, team_b]]
+    
+    st.info("Runs: 1pt | Wicket: 20pts | Catch: 10pts | Stumping: 15pts")
+
+    new_match_scores = {}
+    for p_name in sorted(match_players):
+        role = PLAYER_MASTER[p_name]['role']
+        with st.expander(f"📊 {p_name} ({role} - {PLAYER_MASTER[p_name]['team']})"):
+            c1, c2, c3, c4 = st.columns(4)
+            r = c1.number_input("Runs", min_value=0, key=f"r_{p_name}")
+            
+            # Wickets only for BOWL or WK (if they bowl) - Hidden for pure BAT
+            w = 0
+            if role != 'BAT':
+                w = c2.number_input("Wickets", min_value=0, key=f"w_{p_name}")
+            
+            # Catch for everyone
+            c = c3.number_input("Catches", min_value=0, key=f"c_{p_name}")
+            
+            # Stumping only for WK
+            s = 0
+            if role == 'WK':
+                s = c4.number_input("Stumpings", min_value=0, key=f"s_{p_name}")
+            
+            total = (r * 1) + (w * 20) + (c * 10) + (s * 15)
+            st.write(f"Calculated Points: **{total}**")
+            new_match_scores[p_name] = total
+
+    if st.button("🔥 Push Scores to Leaderboard", use_container_width=True):
+        for p_name, p_pts in new_match_scores.items():
+            if p_name not in db["scores"]: db["scores"][p_name] = {}
+            db["scores"][p_name][selected_match] = p_pts
+        save_db(db)
+        st.success("All match scores updated!")
