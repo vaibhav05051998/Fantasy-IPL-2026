@@ -40,8 +40,8 @@ data = load_data()
 # Lock logic (Sat 7PM)
 now = datetime.datetime.now(IST)
 # Saturday = 5. Lock if Sat >= 19:00 OR if Sun-Fri
-is_locked = (now.weekday() == 5 and now.hour >= 19) or (now.weekday() in [6,0,1,2,3,4])
-
+# is_locked = (now.weekday() == 5 and now.hour >= 19) or (now.weekday() in [6,0,1,2,3,4])
+is_locked = false
 if is_locked:
     st.sidebar.error("🔒 SQUAD LOCKED")
     st.subheader(f"Active XI: {user}")
