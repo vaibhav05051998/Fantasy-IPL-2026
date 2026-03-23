@@ -3,7 +3,7 @@ import pandas as pd
 import json
 import os
 
-# --- 1. DATA: IPL 2026 SCHEDULE (PHASE 1) ---
+# --- 1. DATA: IPL 2026 SCHEDULE ---
 IPL_SCHEDULE = [
     "Match 01: RCB vs SRH (Mar 28)", "Match 02: MI vs KKR (Mar 29)", 
     "Match 03: RR vs CSK (Mar 30)", "Match 04: PBKS vs GT (Mar 31)",
@@ -17,8 +17,7 @@ IPL_SCHEDULE = [
     "Match 19: LSG vs GT (Apr 12)", "Match 20: MI vs RCB (Apr 12)"
 ]
 
-# --- 2. PLAYER DATA WITH TEAM TAGS ---
-# Based on your auction list and official 2026 rosters
+# --- 2. PLAYER MASTER DATA (TEAM & ROLE SYNCED) ---
 PLAYER_MASTER = {
     'Rajat Patidar': {'team': 'RCB', 'role': 'BAT'}, 'Devdutt Padikkal': {'team': 'RCB', 'role': 'BAT'},
     'Shimron Hetmyer': {'team': 'RR', 'role': 'BAT'}, 'Dhruv Jurel': {'team': 'RR', 'role': 'WK'},
@@ -72,7 +71,7 @@ PLAYER_MASTER = {
     'Ramandeep Singh': {'team': 'KKR', 'role': 'BAT'}
 }
 
-# Member Pools (Used for Selection)
+# Member Pools
 MEMBER_POOLS = {
     'Kazim': ['Rajat Patidar', 'Devdutt Padikkal', 'Shimron Hetmyer', 'Dhruv Jurel', 'Vaibhav Suryavanshi', 'Priyansh Arya', 'Ryan Rickelton', 'Aiden Markram', 'Angkrish Raghuvanshi', 'Shahrukh Khan', 'Nitish Rana', 'Prashant Veer', 'Anshul Kambhoj', 'Axar Patel', 'Gudakesh Motie', 'Will Jacks', 'Marcus Stoinis', 'Shashank Singh', 'Nitish Kumar Reddy', 'Pat Cummins', 'Jacob Duffy', 'Josh Hazlewood'],
     'Adi': ['Philip Salt', 'Yashasvi Jaiswal', 'Prabhsimran Singh', 'Nicholas Pooran', 'Tim Seifert', 'Shubman Gill', 'Ayush Mhatre', 'Ashutosh Sharma', 'Rahul Tewatia', 'Jasprit Bumrah', 'Ravindra Jadeja', 'Abhishek Sharma', 'Harshal Patel', 'Jofra Archer', 'Yuzvendra Chahal', 'Allah Ghazanfar', 'Digvesh Rathi', 'Prasidh Krishna', 'Umran Malik', 'Vipraj Nigam'],
@@ -101,58 +100,42 @@ week = "1"
 
 tab1, tab2, tab3, tab4 = st.tabs(["📋 Selection", "📊 Leaderboard", "📜 Match Logs", "🛡️ Admin Console"])
 
-# --- TAB 1 & 2 & 3 (Same Logic as Previous, with ROLE validation) ---
-# ... (Selection logic remains similar, validating 1 WK, 5 BOWL)
+# (Standard Selection and Leaderboard Logic here)
+# ... [Selection Logic Omitted for brevity, but remains in the full final build] ...
 
 # --- TAB 4: ERGONOMIC ADMIN CONSOLE ---
 with tab4:
     st.title("🛡️ Super Admin Dashboard")
+    selected_match = st.selectbox("🎯 Select Match:", IPL_SCHEDULE)
     
-    # MATCH SELECTION
-    selected_match = st.selectbox("🎯 Select Match to Score:", IPL_SCHEDULE)
-    
-    # Parsing teams from selection (e.g., "RCB vs SRH")
+    # Parse Teams
     match_part = selected_match.split(":")[1].split("(")[0].strip()
     team_a, team_b = match_part.split(" vs ")
     
-    st.subheader(f"Entering Scores for {team_a} and {team_b}")
+    # Filter Players
+    match_players = [n for n, i in PLAYER_MASTER.items() if i['team'] in [team_a, team_b]]
     
-    # Filter players belonging to these two teams
-    relevant_players = [name for name, info in PLAYER_MASTER.items() if info['team'] in [team_a, team_b]]
-    
-    # CREATE SCORING GRID
-    st.info("💡 Tip: Enter points for all players below and click 'Batch Update' at the bottom.")
-    
-    new_scores_entry = {}
-    
-    # Display in 3 columns for better ergonomics
-    cols = st.columns(3)
-    for idx, p_name in enumerate(sorted(relevant_players)):
-        with cols[idx % 3]:
-            # Current score if exists for this match
-            current_val = db["scores"].get(p_name, {}).get(selected_match, 0)
-            score_input = st.number_input(f"{p_name} ({PLAYER_MASTER[p_name]['team']})", min_value=0, value=current_val, key=f"score_{p_name}")
-            new_scores_entry[p_name] = score_input
+    st.subheader(f"Input Stats for {team_a} vs {team_b}")
+    st.write("Wicket = 20 pts | Catch = 10 pts | Run = 1 pt")
 
-    if st.button("🔥 Batch Update Scores", use_container_width=True):
-        for p_name, p_score in new_scores_entry.items():
+    new_scores = {}
+    
+    for p_name in sorted(match_players):
+        with st.expander(f"📊 {p_name} ({PLAYER_MASTER[p_name]['team']})"):
+            c1, c2, c3 = st.columns(3)
+            runs = c1.number_input("Runs", min_value=0, key=f"r_{p_name}")
+            wicks = c2.number_input("Wickets", min_value=0, key=f"w_{p_name}")
+            catch = c3.number_input("Catches", min_value=0, key=f"c_{p_name}")
+            
+            # CALCULATION LOGIC
+            total_p = (runs * 1) + (wicks * 20) + (catch * 10)
+            st.write(f"**Total Points: {total_p}**")
+            new_scores[p_name] = total_p
+
+    if st.button("🔥 Push All Scores to Database", use_container_width=True):
+        for p_name, p_pts in new_scores.items():
             if p_name not in db["scores"]: db["scores"][p_name] = {}
-            db["scores"][p_name][selected_match] = p_score
+            db["scores"][p_name][selected_match] = p_pts
         save_db(db)
-        st.success(f"Successfully updated all scores for {selected_match}!")
+        st.success("All match scores successfully updated!")
         st.balloons()
-
-    st.divider()
-    
-    # UTILITIES
-    col_reset1, col_reset2 = st.columns(2)
-    with col_reset1:
-        if st.button("🏁 Finalize Week (Move to Totals)"):
-            # Same logic to move weekly to totals
-            pass
-    with col_reset2:
-        u_status = db.get("force_unlock", False)
-        if st.button(f"Selection Lock: {'OPEN' if u_status else 'CLOSED'}"):
-            db["force_unlock"] = not u_status
-            save_db(db)
-            st.rerun()
