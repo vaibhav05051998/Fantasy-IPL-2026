@@ -4,7 +4,7 @@ import json
 import os
 from datetime import datetime
 
-# --- 1. GLOBAL DATA & CONFIG ---
+# --- 1. GLOBAL DATA ---
 TEAM_STYLING = {
     'RCB': '#d11d26', 'MI': '#004ba0', 'CSK': '#fdb913', 'SRH': '#f26522',
     'RR': '#ea1a85', 'KKR': '#3a225d', 'GT': '#1b2133', 'LSG': '#0057e2',
@@ -35,8 +35,8 @@ MEMBER_POOLS = {
     'Nagle': ['Heinrich Klaasen', 'Virat Kohli', 'Suryakumar Yadav', 'Rinku Singh', 'KL Rahul', 'Sanju Samson', 'Cameron Green', 'Tilak Varma', 'Marco Jansen', 'Varun Chakaravarthy', 'Lungi Ngidi', 'Jason Holder', 'Mitchell Starc', 'Josh Inglis', 'Ramandeep Singh']
 }
 
-# (Add all 105 players here with correct team/role)
-PLAYER_MASTER = {name: {'team': 'RCB', 'role': 'BAT'} for p in MEMBER_POOLS.values() for name in p}
+# Auto-generate player mapping with a default fallback to avoid crashes
+PLAYER_MASTER = {name: {'team': 'RCB', 'role': 'BAT'} for p_list in MEMBER_POOLS.values() for name in p_list}
 
 DB_FILE = 'tournament_db.json'
 def load_db():
@@ -50,12 +50,12 @@ def save_db(data):
     data["last_updated"] = datetime.now().strftime("%d %b, %H:%M")
     with open(DB_FILE, 'w') as f: json.dump(data, f)
 
-# --- 2. LAYOUT & SIDEBAR ---
+# --- 2. SIDEBAR & LOGIC ---
 st.set_page_config(page_title="Inner Circle IPL", layout="wide")
 db = load_db()
 
-st.sidebar.title("📅 Weekly Cycle")
-current_week = st.sidebar.selectbox("Active Week", list(SEASON_WEEKS.keys()))
+st.sidebar.title("📅 Season Control")
+current_week = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()))
 
 match_list = SEASON_WEEKS[current_week]
 team_counts = {}
@@ -65,14 +65,14 @@ for m in match_list:
         t = t.strip()
         team_counts[t] = team_counts.get(t, 0) + 1
 
-st.sidebar.subheader("Matches (Sat-Fri)")
+st.sidebar.subheader("Team Match Counts")
 for team, count in sorted(team_counts.items(), key=lambda x: x[1], reverse=True):
     st.sidebar.write(f"● {team}: **{count}**")
 
 # --- 3. UI STYLE ---
 st.markdown("""
 <style>
-    .player-card { padding: 4px; margin: 2px 0; background: white; border-radius: 4px; border-left: 5px solid #ccc; font-size: 0.8rem; }
+    .player-card { padding: 4px; background: white; border-radius: 4px; border-left: 5px solid #ccc; margin-bottom: 2px; font-size: 0.8rem; }
     .lb-card { background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center; }
     .weekly-pts { color: #64748b; font-size: 0.85rem; font-weight: bold; }
     .total-pts { color: #e11d48; font-size: 1.4rem; font-weight: 800; display: block; }
@@ -80,74 +80,103 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🏆 Inner Circle IPL 2026")
-tab1, tab2, tab4 = st.tabs(["🏏 TEAM SELECTION", "📊 STANDINGS", "🛡️ ADMIN"])
+t1, t2, t3 = st.tabs(["🏏 SELECTION", "📊 STANDINGS", "🛡️ ADMIN"])
 
 # --- TAB 1: SELECTION ---
-with tab1:
-    st.info(f"📅 Schedule: {' | '.join(match_list)}")
+with t1:
+    st.info(f"📅 Matches: {' | '.join(match_list)}")
     user = st.selectbox("Manager", list(MEMBER_POOLS.keys()))
     pool = MEMBER_POOLS[user]
-    saved_squad = db["selections"].get(current_week, {}).get(user, {}).get("squad", [])
+    saved = db["selections"].get(current_week, {}).get(user, {"squad": [], "cap": ""})
     
-    col_l, col_r = st.columns([3, 1])
-    with col_l:
-        selected_names = []
-        counts = {"BAT": 0, "BOWL": 0, "WK": 0}
+    cl, cr = st.columns([3, 1])
+    with cl:
+        selected = []
         grid = st.columns(3)
-        for i, p_name in enumerate(pool):
-            p_info = PLAYER_MASTER.get(p_name, {'team': '?', 'role': 'BAT'})
-            color = TEAM_STYLING.get(p_info['team'], '#ccc')
+        for i, p in enumerate(pool):
+            team = PLAYER_MASTER.get(p, {}).get('team', '?')
+            color = TEAM_STYLING.get(team, '#ccc')
             with grid[i % 3]:
-                st.markdown(f'<div class="player-card" style="border-left-color: {color}">{p_name} ({p_info["team"]})</div>', unsafe_allow_html=True)
-                if st.checkbox("Pick", key=f"p_{user}_{p_name}_{current_week}", value=(p_name in saved_squad)):
-                    selected_names.append(p_name)
-                    counts[p_info['role']] += 1
-    
-    with col_r:
-        st.metric("Players", f"{len(selected_names)}/11")
-        if len(selected_names) == 11:
-            cap = st.selectbox("Assign Captain", selected_names, key=f"cap_{user}_{current_week}")
+                st.markdown(f'<div class="player-card" style="border-left-color: {color}">{p} ({team})</div>', unsafe_allow_html=True)
+                if st.checkbox("Pick", key=f"p_{user}_{p}_{current_week}", value=(p in saved["squad"])):
+                    selected.append(p)
+    with cr:
+        st.metric("Players", f"{len(selected)}/11")
+        if len(selected) == 11:
+            cap = st.selectbox("Captain", selected, key=f"cap_{user}_{current_week}")
             if st.button("🚀 LOCK TEAM"):
                 if current_week not in db["selections"]: db["selections"][current_week] = {}
-                db["selections"][current_week][user] = {"squad": selected_names, "cap": cap}
+                db["selections"][current_week][user] = {"squad": selected, "cap": cap}
                 save_db(db)
                 st.success("Squad Saved!")
 
 # --- TAB 2: STANDINGS ---
-with tab2:
+with t2:
     cols = st.columns(len(MEMBER_POOLS))
-    lb_data = []
+    lb_list = []
     for i, m in enumerate(MEMBER_POOLS.keys()):
-        # Weekly
+        # Week Logic
         w_pts = 0
         m_curr = db["selections"].get(current_week, {}).get(m, {"squad": [], "cap": ""})
         for p in m_curr["squad"]:
-            p_scores = db["scores"].get(p, {})
-            pts = sum([v for k, v in p_scores.items() if k in SEASON_WEEKS[current_week]])
+            sc = db["scores"].get(p, {})
+            pts = sum([v for k, v in sc.items() if k in match_list])
             w_pts += (pts * 2) if p == m_curr["cap"] else pts
-            
-        # Total
-        total_pts = 0
+        # Total Logic
+        t_pts = 0
         for wk, matches in SEASON_WEEKS.items():
             m_wk = db["selections"].get(wk, {}).get(m, {"squad": [], "cap": ""})
             for p in m_wk["squad"]:
-                p_scores = db["scores"].get(p, {})
-                pts = sum([v for k, v in p_scores.items() if k in matches])
-                total_pts += (pts * 2) if p == m_wk["cap"] else pts
+                sc = db["scores"].get(p, {})
+                pts = sum([v for k, v in sc.items() if k in matches])
+                t_pts += (pts * 2) if p == m_wk["cap"] else pts
         
-        lb_data.append({"Manager": m, "Weekly": w_pts, "Total": total_pts})
+        lb_list.append({"Manager": m, "Weekly": w_pts, "Total": t_pts})
         with cols[i]:
-            st.markdown(f'<div class="lb-card"><b>{m}</b><br><span class="weekly-pts">Week: {w_pts}</span><span class="total-pts">{total_pts}</span><small>SEASON</small></div>', unsafe_allow_html=True)
-    st.table(pd.DataFrame(lb_data).sort_values("Total", ascending=False))
+            st.markdown(f'<div class="lb-card"><b>{m}</b><br><span class="weekly-pts">Week: {w_pts}</span><span class="total-pts">{t_pts}</span><small>SEASON</small></div>', unsafe_allow_html=True)
+    st.table(pd.DataFrame(lb_list).sort_values("Total", ascending=False))
 
-# --- TAB 4: ADMIN ---
-with tab4:
-    selected_match = st.selectbox("Select Match to Score", match_list)
-    match_teams = [t.strip() for t in selected_match.split(":")[1].split("(")[0].split(" vs ")]
+# --- TAB 3: ADMIN ---
+with t3:
+    sel_match = st.selectbox("Select Match to Score", match_list)
+    m_teams = [t.strip() for t in sel_match.split(":")[1].split("(")[0].split(" vs ")]
     
-    all_picked = set()
+    picked = set()
     for m_data in db["selections"].get(current_week, {}).values():
-        all_picked.update(m_data["squad"])
+        picked.update(m_data["squad"])
     
-    match_players = [p for p in all_picked if PLAYER_MASTER
-    
+    # Filter only players in the selected match teams
+    m_players = [p for p in picked if PLAYER_MASTER.get(p, {}).get('team') in m_teams]
+
+    new_sc = {}
+    for p in sorted(m_players):
+        with st.expander(f"● {p} ({PLAYER_MASTER[p]['team']})"):
+            c1, c2, c3 = st.columns(3)
+            r = c1.number_input("Runs", 0, key=f"r_{p}_{sel_match}")
+            w = c2.number_input("Wickets", 0, key=f"w_{p}_{sel_match}")
+            f = c3.number_input("Fielding", 0, key=f"f_{p}_{sel_match}")
+            new_sc[p] = r + (w * 20) + (f * 5)
+
+    if st.button("🔥 PUSH MATCH SCORES", type="primary", use_container_width=True):
+        for p, pts in new_sc.items():
+            if p not in db["scores"]: db["scores"][p] = {}
+            db["scores"][p][sel_match] = pts
+        save_db(db)
+        st.success("Synced!")
+        st.rerun()
+
+    st.divider()
+    if st.button("🗑️ CLEAR DATA"):
+        st.session_state['confirm_del'] = True
+    if st.session_state.get('confirm_del'):
+        st.warning("Confirm Deletion?")
+        if st.button(f"Clear {sel_match}"):
+            for p in db["scores"]:
+                if sel_match in db["scores"][p]: del db["scores"][p][sel_match]
+            save_db(db)
+            st.session_state['confirm_del'] = False
+            st.rerun()
+        if st.button("Cancel"):
+            st.session_state['confirm_del'] = False
+            st.rerun()
+        
