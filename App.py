@@ -3,109 +3,107 @@ import pandas as pd
 import json
 import os
 
-# --- 1. CONFIG & TEAM ASSIGNMENTS ---
-# Assigning specific teams to players for smart filtering
-TEAM_MAP = {
-    'RCB': ['Virat Kohli', 'Rajat Patidar', 'Will Jacks', 'Yash Dayal', 'Mohammed Siraj', 'Cameron Green'],
-    'MI': ['Rohit Sharma', 'Suryakumar Yadav', 'Hardik Pandya', 'Jasprit Bumrah', 'Ishan Kishan', 'Tim David', 'Nehal Wadhera'],
-    'CSK': ['MS Dhoni', 'Ruturaj Gaikwad', 'Ravindra Jadeja', 'Shivam Dube', 'Deepak Chahar', 'Tushar Deshpande', 'Matheesha Pathirana'],
-    'SRH': ['Travis Head', 'Abhishek Sharma', 'Heinrich Klaasen', 'Pat Cummins', 'Aiden Markram', 'Nitish Kumar Reddy', 'Bhuvneshwar Kumar'],
-    'RR': ['Yashasvi Jaiswal', 'Sanju Samson', 'Jos Buttler', 'Riyan Parag', 'Dhruv Jurel', 'Yuzvendra Chahal', 'Trent Boult', 'Avesh Khan'],
-    'KKR': ['Shreyas Iyer', 'Sunil Narine', 'Rinku Singh', 'Varun Chakaravarthy', 'Venkatesh Iyer', 'Phil Salt', 'Ramandeep Singh'],
-    'GT': ['Shubman Gill', 'Rashid Khan', 'Sai Sudharsan', 'Rahul Tewatia', 'Mohammed Shami', 'Noor Ahmad'],
-    'LSG': ['KL Rahul', 'Nicholas Pooran', 'Marcus Stoinis', 'Ravi Bishnoi', 'Quinton de Kock', 'Ayush Badoni'],
-    'DC': ['Rishabh Pant', 'Axar Patel', 'Kuldeep Yadav', 'Jake Fraser-McGurk', 'Tristan Stubbs', 'Khaleel Ahmed'],
-    'PBKS': ['Arshdeep Singh', 'Shashank Singh', 'Ashutosh Sharma', 'Liam Livingstone', 'Sam Curran', 'Jitesh Sharma']
-}
+# --- 1. CONFIG & SMART MAPPING ---
+TEAM_COLORS = {'RCB': '#d11d26', 'MI': '#004ba0', 'CSK': '#fdb913', 'SRH': '#f26522', 'RR': '#ea1a85', 'KKR': '#3a225d', 'GT': '#1b2133', 'LSG': '#0057e2', 'DC': '#0078bc', 'PBKS': '#dd1f2d', 'IPL': '#000080'}
+ROLE_EMOJI = {'BAT': '🏏', 'BOWL': '⚾', 'WK': '🧤'}
 
-# Mapping the "Sat-Fri" Week Logic
+# Saturday to Friday Week Logic with Match Numbers
 SEASON_WEEKS = {
     "Week 1 (Mar 28 - Apr 03)": {
-        "Matches": ["RCB vs SRH", "MI vs KKR", "RR vs CSK", "PBKS vs GT", "LSG vs DC", "KKR vs SRH", "CSK vs PBKS"],
-        "Schedule": {"RCB": 1, "SRH": 2, "MI": 1, "KKR": 2, "RR": 1, "CSK": 2, "PBKS": 2, "GT": 1, "LSG": 1, "DC": 1}
+        "M01": "RCB vs SRH", "M02": "MI vs KKR", "M03": "RR vs CSK", 
+        "M04": "PBKS vs GT", "M05": "LSG vs DC", "M06": "KKR vs SRH", "M07": "CSK vs PBKS"
     },
     "Week 2 (Apr 04 - Apr 10)": {
-        "Matches": ["DC vs MI", "GT vs RR", "SRH vs LSG", "RCB vs CSK", "KKR vs PBKS", "RR vs MI", "DC vs GT"],
-        "Schedule": {"DC": 2, "MI": 2, "GT": 2, "RR": 2, "SRH": 1, "LSG": 1, "RCB": 1, "CSK": 1, "KKR": 1, "PBKS": 1}
+        "M08": "DC vs MI", "M09": "GT vs RR", "M10": "SRH vs LSG", 
+        "M11": "RCB vs CSK", "M12": "KKR vs PBKS", "M13": "RR vs MI", "M14": "DC vs GT"
     }
 }
 
-TEAM_COLORS = {'RCB': '#d11d26', 'MI': '#004ba0', 'CSK': '#fdb913', 'SRH': '#f26522', 'RR': '#ea1a85', 'KKR': '#3a225d', 'GT': '#1b2133', 'LSG': '#0057e2', 'DC': '#0078bc', 'PBKS': '#dd1f2d'}
-
-# --- 2. DATABASE & HELPER FUNCTIONS ---
+# --- 2. DATABASE ENGINE ---
 DB_FILE = 'tournament_db.json'
-
-def get_player_team(name):
-    for team, players in TEAM_MAP.items():
-        if name in players: return team
-    return 'IPL' # Default
-
 def load_db():
-    # Initial load logic (omitted for brevity, same as previous version)
     if os.path.exists(DB_FILE):
         with open(DB_FILE, 'r') as f: return json.load(f)
     return {"selections": {}, "scores": {}, "pools": {}, "player_master": {}}
 
 db = load_db()
 
-# --- 3. UI STYLING (Compact Grid) ---
-st.set_page_config(page_title="Inner Circle IPL", layout="wide")
+# --- 3. UI STYLING (Compact Grid & Zero Scroll) ---
+st.set_page_config(page_title="Inner Circle IPL 2026", layout="wide")
 st.markdown("""
 <style>
-    .compact-card { padding: 8px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 5px; background: #fdfdfd; font-size: 13px; }
-    .jersey-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
-    .match-tag { background: #e2e8f0; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+    .player-card { border: 1px solid #e2e8f0; padding: 10px; border-radius: 10px; background: #fff; margin-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .jersey-dot { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .meta-text { font-size: 11px; color: #64748b; font-weight: 600; }
+    .match-pill { background: #f1f5f9; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; color: #475569; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. APP LOGIC ---
+# --- 4. SIDEBAR & NAVIGATION ---
 st.sidebar.title("📅 Season Control")
-sel_week_name = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()))
-week_data = SEASON_WEEKS[sel_week_name]
+sel_week = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()))
+matches_this_week = SEASON_WEEKS[sel_week]
 
-# Show Matches in Selected Week
 st.sidebar.markdown("### Matches this Week")
-for m in week_data["Matches"]:
-    st.sidebar.markdown(f"• <span class='match-tag'>{m}</span>", unsafe_allow_html=True)
+for mid, teams in matches_this_week.items():
+    st.sidebar.markdown(f"<span class='match-pill'>{mid}</span> {teams}", unsafe_allow_html=True)
 
+st.title("🏆 Inner Circle IPL 2026")
 t1, t2, t3 = st.tabs(["🏏 SQUAD SELECTION", "📊 STANDINGS", "🛡️ ADMIN"])
 
+# --- TAB 1: SQUAD SELECTION (4-COL COMPACT GRID) ---
 with t1:
-    user = st.selectbox("Select Manager", list(db["pools"].keys()))
-    user_pool = db["pools"].get(user, [])
+    user = st.selectbox("Manager", list(db["pools"].keys()))
+    pool = db["pools"].get(user, [])
     
-    # Compact Grid Layout
-    cols = st.columns(4) # 4 columns to reduce scrolling
+    # 4 Columns to minimize scrolling
+    cols = st.columns(4)
     selected = []
     
-    for idx, p in enumerate(user_pool):
-        p_team = get_player_team(p)
-        p_info = db["player_master"].get(p, {})
-        emoji = "🧤" if p_info.get('role') == 'WK' else ("🏏" if p_info.get('role') == 'BAT' else "⚾")
-        os_tag = "✈️" if p_info.get('is_overseas') else ""
+    for idx, p in enumerate(pool):
+        p_info = db["player_master"].get(p, {'team': 'IPL', 'role': 'BAT', 'is_overseas': False})
+        color = TEAM_COLORS.get(p_info['team'], '#ccc')
+        emoji = ROLE_EMOJI.get(p_info['role'], '🏏')
+        os_icon = "✈️" if p_info['is_overseas'] else ""
         
         with cols[idx % 4]:
-            st.markdown(f'''<div class="compact-card"><span class="jersey-dot" style="background:{TEAM_COLORS.get(p_team, '#ccc')}"></span><b>{p}</b><br><small>{p_team} | {emoji} {os_tag}</small></div>''', unsafe_allow_html=True)
-            if st.checkbox("Pick", key=f"sel_{p}", label_visibility="collapsed"):
+            st.markdown(f'''
+                <div class="player-card">
+                    <span class="jersey-dot" style="background:{color}"></span>
+                    <b>{p}</b><br>
+                    <span class="meta-text">{p_info['team']} | {emoji} {os_icon}</span>
+                </div>
+            ''', unsafe_allow_html=True)
+            if st.checkbox("Pick", key=f"sel_{user}_{p}", label_visibility="collapsed"):
                 selected.append(p)
+    
+    # Validation & Locking logic... (Previous code remains)
 
-    # Locking logic (omitted for brevity)
-
+# --- TAB 3: ADMIN (SMART SCORING BY MATCH NUMBER) ---
 with t3:
-    st.subheader("🛡️ Scoring Dashboard")
-    sel_match = st.selectbox("Select Match to Score", week_data["Matches"])
+    st.subheader("🛡️ Admin Scoring Console")
     
-    # Smart Filtering: Show only players playing in the selected match
-    playing_teams = sel_match.split(" vs ")
-    eligible_players = [p for p in db["player_master"].keys() if get_player_team(p) in playing_teams]
+    # Select Match Number first
+    sel_mid = st.selectbox("Select Match Number", list(matches_this_week.keys()))
+    match_teams = matches_this_week[sel_mid]
+    st.info(f"Scoring for **{sel_mid}: {match_teams}**")
     
-    if not eligible_players:
-        st.info("No players from this match are in any manager's pool.")
+    # Filter players who belong to the teams in this match
+    playing_teams = match_teams.split(" vs ")
+    eligible = [p for p, info in db["player_master"].items() if info['team'] in playing_teams]
+    
+    if not eligible:
+        st.warning("No players from these teams found in any manager's pool.")
     else:
-        for p in sorted(eligible_players):
-            with st.expander(f"{p} ({get_player_team(p)})"):
-                val = st.number_input(f"Points for {p}", 0, key=f"score_{p}")
-                if st.button(f"Save {p}"):
-                    # Save logic
-                    st.toast(f"Saved {p}")
-
+        # Show players in a clean list for scoring
+        for p in sorted(eligible):
+            p_team = db["player_master"][p]['team']
+            with st.expander(f"{p} ({p_team})"):
+                cur_sc = db["scores"].get(p, {}).get(sel_mid, 0)
+                score = st.number_input(f"Points in {sel_mid}", 0, value=int(cur_sc), key=f"sc_{sel_mid}_{p}")
+                if st.button(f"Update {p}"):
+                    if p not in db["scores"]: db["scores"][p] = {}
+                    db["scores"][p][sel_mid] = score
+                    # save_db(db) logic
+                    st.toast(f"Points updated for {p}!")
+    
