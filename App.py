@@ -3,14 +3,8 @@ import pandas as pd
 import json
 import os
 
-# --- 1. PLAYER & SCHEDULE DATA ---
-IPL_SCHEDULE = [
-    "Match 01: RCB vs SRH (Mar 28)", "Match 02: MI vs KKR (Mar 29)", 
-    "Match 03: RR vs CSK (Mar 30)", "Match 04: PBKS vs GT (Mar 31)",
-    "Match 05: LSG vs DC (Apr 01)", "Match 06: KKR vs SRH (Apr 02)",
-    "Match 07: CSK vs PBKS (Apr 03)", "Match 08: DC vs MI (Apr 04)",
-    "Match 09: GT vs RR (Apr 04)", "Match 10: SRH vs LSG (Apr 05)"
-]
+# --- 1. DATA SETUP ---
+IPL_SCHEDULE = ["Match 01: RCB vs SRH (Mar 28)", "Match 02: MI vs KKR (Mar 29)", "Match 03: RR vs CSK (Mar 30)"]
 
 PLAYER_MASTER = {
     'Rajat Patidar': {'team': 'RCB', 'role': 'BAT'}, 'Devdutt Padikkal': {'team': 'RCB', 'role': 'BAT'},
@@ -74,106 +68,74 @@ MEMBER_POOLS = {
 }
 
 DB_FILE = 'tournament_db.json'
-
 def load_db():
     if os.path.exists(DB_FILE):
         with open(DB_FILE, 'r') as f: return json.load(f)
-    return {"selections": {}, "scores": {}, "totals": {m: 0 for m in MEMBER_POOLS.keys()}, "force_unlock": True}
+    return {"selections": {}, "scores": {}, "totals": {m: 0 for m in MEMBER_POOLS.keys()}}
 
 def save_db(data):
     with open(DB_FILE, 'w') as f: json.dump(data, f)
 
-# --- 2. APP UI ---
+# --- 2. THEME & HEADER ---
 st.set_page_config(page_title="Inner Circle IPL 2026", layout="wide")
 db = load_db()
 week = "1"
 
-tab1, tab2, tab3, tab4 = st.tabs(["📋 Selection", "📊 Leaderboard", "📜 Match Logs", "🛡️ Admin Console"])
+# Custom CSS for modern feel
+st.markdown("""
+<style>
+    .stMetric { background-color: #f0f2f6; padding: 15px; border-radius: 10px; border-left: 5px solid #ff4b4b; }
+    .player-card { border: 1px solid #e6e9ef; padding: 10px; border-radius: 8px; margin-bottom: 5px; }
+    .status-open { color: #28a745; font-weight: bold; }
+</style>
+""", unsafe_allow_html=True)
 
-# --- TAB 1: SELECTION ---
+st.title("🏆 Inner Circle IPL 2026")
+st.markdown("---")
+
+tab1, tab2, tab3, tab4 = st.tabs(["🎯 SELECTION", "📊 STANDINGS", "📜 HISTORY", "⚙️ ADMIN"])
+
+# --- TAB 1: SELECTION (Modern Cards) ---
 with tab1:
-    user = st.selectbox("Select User:", list(MEMBER_POOLS.keys()))
+    user = st.selectbox("Select Member", list(MEMBER_POOLS.keys()))
     pool = MEMBER_POOLS[user]
     saved_squad = db["selections"].get(week, {}).get(user, {}).get("squad", [])
     
-    selected_names = []
-    counts = {"BAT": 0, "BOWL": 0, "WK": 0}
+    col_a, col_b = st.columns([2, 1])
+    with col_a:
+        st.subheader(f"Building Team: {user}")
+        selected_names = []
+        counts = {"BAT": 0, "BOWL": 0, "WK": 0}
+        
+        # Grid layout for player selection
+        grid_cols = st.columns(3)
+        for i, p_name in enumerate(pool):
+            role = PLAYER_MASTER.get(p_name, {}).get('role', 'BAT')
+            with grid_cols[i % 3]:
+                st.markdown(f"**{p_name}** ({role})")
+                if st.checkbox("Add to XI", key=f"sel_{user}_{p_name}", value=(p_name in saved_squad)):
+                    selected_names.append(p_name)
+                    counts[role] += 1
     
-    cols = st.columns(2)
-    for i, p_name in enumerate(pool):
-        role = PLAYER_MASTER.get(p_name, {}).get('role', 'BAT')
-        with cols[i % 2]:
-            if st.checkbox(f"{p_name} ({role})", key=f"sel_{user}_{p_name}", value=(p_name in saved_squad)):
-                selected_names.append(p_name)
-                counts[role] += 1
-    
-    st.write(f"**Current:** WK: {counts['WK']} | BOWL: {counts['BOWL']} | BAT: {counts['BAT']}")
-    if len(selected_names) > 0:
-        cap = st.selectbox("Assign Captain (2x):", selected_names)
-        if st.button("Save Squad"):
-            if len(selected_names) == 11 and counts['WK'] >= 1 and counts['BOWL'] >= 5:
-                if week not in db["selections"]: db["selections"][week] = {}
-                db["selections"][week][user] = {"squad": selected_names, "cap": cap}
-                save_db(db)
-                st.success("Squad Saved!")
-            else:
-                st.error("Invalid Squad (Rules: 11 Total, 1 WK, 5 Bowlers)")
+    with col_b:
+        st.subheader("Team Balance")
+        st.metric("Total Players", f"{len(selected_names)}/11")
+        st.progress(len(selected_names)/11)
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("WK", counts['WK'])
+        c2.metric("BOWL", counts['BOWL'])
+        c3.metric("BAT", counts['BAT'])
 
-# --- TAB 2 & 3: LEADERBOARD & LOGS ---
-with tab2:
-    lb_data = []
-    for m in MEMBER_POOLS.keys():
-        w_pts = 0
-        m_data = db["selections"].get(week, {}).get(m, {"squad": [], "cap": ""})
-        for p in m_data["squad"]:
-            p_pts = sum(db["scores"].get(p, {}).values())
-            w_pts += (p_pts * 2) if p == m_data["cap"] else p_pts
-        lb_data.append({"Member": m, "Weekly Pts": w_pts, "Total": db["totals"][m] + w_pts})
-    st.table(pd.DataFrame(lb_data).sort_values("Total", ascending=False))
-
-with tab3:
-    all_scored = sorted(list(db["scores"].keys()))
-    if all_scored:
-        p_query = st.selectbox("Player Logs:", all_scored)
-        for m, s in db["scores"].get(p_query, {}).items():
-            st.write(f"🏏 {m}: **{s} pts**")
-
-# --- TAB 4: ADMIN CONSOLE (FILTERED) ---
-with tab4:
-    st.header("Admin Scoring Dashboard")
-    selected_match = st.selectbox("🎯 Select Match:", IPL_SCHEDULE)
-    match_part = selected_match.split(":")[1].split("(")[0].strip()
-    teams_in_match = match_part.split(" vs ")
-
-    # SMART FILTER: Only players selected by members AND playing in the selected match
-    selected_by_anyone = set()
-    for m in db["selections"].get(week, {}).values():
-        selected_by_anyone.update(m["squad"])
-    
-    match_active_players = [p for p in selected_by_anyone if PLAYER_MASTER.get(p, {}).get('team') in teams_in_match]
-    
-    if not match_active_players:
-        st.warning("No players in this match were selected by any member this week.")
-    else:
-        st.info("Run: 1pt | Wicket: 20pts | Catch/RO/Stumping: 5pts")
-        new_scores = {}
-        for p_name in sorted(match_active_players):
-            role = PLAYER_MASTER[p_name]['role']
-            with st.expander(f"📊 {p_name} ({role} - {PLAYER_MASTER[p_name]['team']})"):
-                c1, c2, c3, c4, c5 = st.columns(5)
-                r = c1.number_input("Runs", min_value=0, key=f"r_{p_name}")
-                w = c2.number_input("Wickets", min_value=0, key=f"w_{p_name}") if role != 'BAT' else 0
-                cat = c3.number_input("Catches", min_value=0, key=f"c_{p_name}")
-                ro = c4.number_input("Runouts", min_value=0, key=f"ro_{p_name}")
-                stu = c5.number_input("Stumpings", min_value=0, key=f"s_{p_name}") if role == 'WK' else 0
-                
-                total = r + (w * 20) + (cat * 5) + (ro * 5) + (stu * 5)
-                st.write(f"Match Points: **{total}**")
-                new_scores[p_name] = total
-
-        if st.button("🔥 Push Match Scores", use_container_width=True):
-            for p_name, p_pts in new_scores.items():
-                if p_name not in db["scores"]: db["scores"][p_name] = {}
-                db["scores"][p_name][selected_match] = p_pts
-            save_db(db)
-            st.success("Leaderboard Updated!")
+        if len(selected_names) > 0:
+            cap = st.selectbox("Choose Captain (2x)", selected_names)
+            if st.button("🚀 Confirm Squad", use_container_width=True):
+                if len(selected_names) == 11 and counts['WK'] >= 1 and counts['BOWL'] >= 5:
+                    if week not in db["selections"]: db["selections"][week] = {}
+                    db["selections"][week][user] = {"squad": selected_names, "cap": cap}
+                    save_db(db)
+                    st.success("Squad Locked!")
+                    st.balloons()
+                else:
+                    st.error("Invalid Balance (Need 11 Total, 1 WK, 5 B
+                    
