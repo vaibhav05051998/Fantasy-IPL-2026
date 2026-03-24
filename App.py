@@ -21,14 +21,30 @@ SEASON_WEEKS = {
 DB_FILE = 'tournament_db.json'
 
 def load_db():
+    # Initialize default structure
+    default = {
+        "selections": {}, 
+        "scores": {}, 
+        "pools": {'Kazim': [], 'Adi': [], 'Aatish': [], 'Shreejith': [], 'Nagle': []}, 
+        "player_master": {}
+    }
+    
     if os.path.exists(DB_FILE):
         try:
-            with open(DB_FILE, 'r') as f: return json.load(f)
-        except: pass
-    return {"selections": {}, "scores": {}, "pools": {'Kazim': [], 'Adi': [], 'Aatish': [], 'Shreejith': [], 'Nagle': []}, "player_master": {}}
+            with open(DB_FILE, 'r') as f:
+                data = json.load(f)
+                # Self-healing: Ensure all keys exist
+                for key in default:
+                    if key not in data:
+                        data[key] = default[key]
+                return data
+        except:
+            return default
+    return default
 
 def save_db(data):
-    with open(DB_FILE, 'w') as f: json.dump(data, f)
+    with open(DB_FILE, 'w') as f:
+        json.dump(data, f)
 
 # --- 2. UI SETUP ---
 st.set_page_config(page_title="Inner Circle IPL", layout="wide")
@@ -55,68 +71,108 @@ with t1:
     pool = db["pools"].get(user, [])
     
     if not pool:
-        st.warning("No players assigned. Use ADMIN tab to redefine pools.")
+        st.warning("⚠️ No players in your pool. Admin must add players in the ADMIN tab.")
     else:
         saved = db["selections"].get(current_week, {}).get(user, {"squad": [], "cap": ""})
         cl, cr = st.columns([3, 1])
         
         selected = []
-        overseas_count = 0
+        os_count = 0
         
         with cl:
             grid = st.columns(3)
             for i, p in enumerate(pool):
                 p_info = db["player_master"].get(p, {'team': 'RCB', 'role': 'BAT', 'is_overseas': False})
-                color = TEAM_STYLING.get(p_info['team'], '#ccc')
-                emoji = ROLE_EMOJI.get(p_info['role'], '🏏')
-                overseas_tag = "✈️ " if p_info.get('is_overseas') else ""
+                color = TEAM_STYLING.get(p_info.get('team', 'RCB'), '#ccc')
+                emoji = ROLE_EMOJI.get(p_info.get('role', 'BAT'), '🏏')
+                os_tag = "✈️ " if p_info.get('is_overseas') else ""
                 
                 with grid[i % 3]:
                     st.markdown(f'''
                         <div class="player-row">
                             <span class="jersey-circle" style="background-color: {color}"></span>
-                            <span>{overseas_tag}{emoji} <b>{p}</b></span>
+                            <span>{os_tag}{emoji} <b>{p}</b></span>
                         </div>
                     ''', unsafe_allow_html=True)
                     if st.checkbox(f"Pick {p}", key=f"sel_{user}_{p}", value=(p in saved["squad"]), label_visibility="collapsed"):
                         selected.append(p)
-                        if p_info.get('is_overseas'): overseas_count += 1
+                        if p_info.get('is_overseas'): os_count += 1
         
         with cr:
-            st.metric("Total Squad", f"{len(selected)}/11")
-            os_color = "normal" if overseas_count <= 4 else "inverse"
-            st.metric("Overseas (Max 4)", f"{overseas_count}/4", delta_color=os_color)
+            st.metric("Total Players", f"{len(selected)}/11")
+            st.metric("Overseas ✈️", f"{os_count}/4")
             
             if len(selected) == 11:
-                if overseas_count > 4:
-                    st.error("Too many overseas players! Max allowed: 4")
+                if os_count > 4:
+                    st.error("Too many overseas! Limit is 4.")
                 else:
-                    cap = st.selectbox("Choose Captain (2x Pts)", selected)
+                    cap = st.selectbox("Choose Captain", selected, index=selected.index(saved["cap"]) if saved["cap"] in selected else 0)
                     if st.button("🚀 LOCK SQUAD", use_container_width=True):
                         if current_week not in db["selections"]: db["selections"][current_week] = {}
                         db["selections"][current_week][user] = {"squad": selected, "cap": cap}
                         save_db(db)
-                        st.success("Squad Locked!")
+                        st.success("Squad Saved!")
 
-# --- TAB 3: ADMIN (Updated for Overseas Toggle) ---
+# --- TAB 2: STANDINGS ---
+with t2:
+    lb_list = []
+    cols = st.columns(len(db["pools"]))
+    for i, m in enumerate(db["pools"].keys()):
+        w_pts = 0
+        m_curr = db["selections"].get(current_week, {}).get(m, {"squad": [], "cap": ""})
+        for p in m_curr["squad"]:
+            sc = db["scores"].get(p, {})
+            pts = sum([v for k, v in sc.items() if k in SEASON_WEEKS[current_week]])
+            w_pts += (pts * 2) if p == m_curr["cap"] else pts
+        
+        t_pts = 0
+        for wk, matches in SEASON_WEEKS.items():
+            m_wk = db["selections"].get(wk, {}).get(m, {"squad": [], "cap": ""})
+            for p in m_wk["squad"]:
+                sc = db["scores"].get(p, {})
+                pts = sum([v for k, v in sc.items() if k in matches])
+                t_pts += (pts * 2) if p == m_wk["cap"] else pts
+        
+        lb_list.append({"Manager": m, "Total": t_pts})
+        with cols[i]:
+            st.markdown(f'<div class="lb-card"><b>{m}</b><br><small>Week: {w_pts}</small><span class="total-pts">{t_pts}</span></div>', unsafe_allow_html=True)
+
+# --- TAB 3: ADMIN ---
 with t3:
-    st.subheader("🛠️ Global Pool & Player Management")
-    with st.expander("Redefine Member Player Pools"):
-        for member in db["pools"].keys():
-            current_p_list = ", ".join(db["pools"][member])
-            new_pool = st.text_area(f"Pool for {member}", value=current_p_list, key=f"pool_{member}")
+    st.subheader("🛡️ Pool Management")
+    for member in db["pools"].keys():
+        with st.expander(f"Edit {member}'s Pool"):
+            cur_names = ", ".join(db["pools"][member])
+            new_names = st.text_area("Names (Comma separated)", value=cur_names, key=f"area_{member}")
             
             c1, c2, c3 = st.columns(3)
-            def_team = c1.selectbox(f"Team for {member}", list(TEAM_STYLING.keys()), key=f"t_{member}")
-            def_role = c2.selectbox(f"Role for {member}", ["BAT", "BOWL", "WK"], key=f"r_{member}")
-            def_os = c3.checkbox(f"Overseas? ✈️", key=f"os_{member}")
+            t = c1.selectbox("Team", list(TEAM_STYLING.keys()), key=f"t_{member}")
+            r = c2.selectbox("Role", ["BAT", "BOWL", "WK"], key=f"r_{member}")
+            o = c3.checkbox("Overseas? ✈️", key=f"o_{member}")
             
             if st.button(f"Update {member}"):
-                names = [n.strip() for n in new_pool.split(",") if n.strip()]
-                db["pools"][member] = names
-                for n in names:
-                    # Update or add player info
-                    db["player_master"][n] = {"team": def_team, "role": def_role, "is_overseas": def_os}
+                name_list = [n.strip() for n in new_names.split(",") if n.strip()]
+                db["pools"][member] = name_list
+                for n in name_list:
+                    db["player_master"][n] = {"team": t, "role": r, "is_overseas": o}
                 save_db(db)
-                st.success(f"Updated {member}!")
-                
+                st.rerun()
+
+    st.divider()
+    st.subheader("🏏 Scoring")
+    all_m = [m for sub in SEASON_WEEKS.values() for m in sub]
+    sel_m = st.selectbox("Select Match", all_m)
+    
+    # Simple scoring logic for players in that week
+    picked = set()
+    for wk_data in db["selections"].get(current_week, {}).values():
+        picked.update(wk_data["squad"])
+    
+    for p in sorted(picked):
+        with st.expander(f"Score {p}"):
+            val = st.number_input("Total Points", 0, key=f"sc_{p}_{sel_m}")
+            if st.button(f"Save {p}"):
+                if p not in db["scores"]: db["scores"][p] = {}
+                db["scores"][p][sel_m] = val
+                save_db(db)
+                st.toast(f"Saved {p}")
