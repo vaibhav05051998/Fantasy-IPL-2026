@@ -1,11 +1,12 @@
-# VERSION: ver01_260326_STABLE_V3
-# STATUS: Multi-View Standings Table + Corrected Sat-Fri Schedule + All Stable Features
+# VERSION: ver01_260326_ULTRA_V4
+# STATUS: 7PM Sat Lock + Auto-Carryover Scoring + Corrected Sat-Fri Schedule
 
 import streamlit as st
 import pandas as pd
 import json
 import os
 from collections import Counter
+from datetime import datetime
 
 # --- 1. CONFIGURATION & DATA ---
 DB_FILE = 'tournament_db.json'
@@ -16,17 +17,16 @@ TEAM_COLORS = {
 }
 ROLE_EMOJI = {'BAT': '🏏', 'BOWL': '⚾', 'WK': '🧤'}
 
-# CORRECTED SAT-FRI SCHEDULE
+# CORRECTED SAT-FRI SCHEDULE WITH LOCK DATES (Saturdays at 19:00)
 SEASON_WEEKS = {
-    "Week 1 (Mar 28 - Apr 03)": {"M01": "RCB vs SRH", "M02": "MI vs KKR", "M03": "RR vs CSK", "M04": "PBKS vs GT", "M05": "LSG vs DC", "M06": "KKR vs SRH", "M07": "CSK vs PBKS"},
-    "Week 2 (Apr 04 - Apr 10)": {"M08": "DC vs MI", "M09": "GT vs RR", "M10": "SRH vs LSG", "M11": "RCB vs CSK", "M12": "KKR vs PBKS", "M13": "RR vs MI", "M14": "DC vs GT"},
-    "Week 3 (Apr 11 - Apr 17)": {"M15": "SRH vs RCB", "M16": "KKR vs MI", "M17": "CSK vs RR", "M18": "GT vs PBKS", "M19": "DC vs LSG", "M20": "SRH vs KKR", "M21": "PBKS vs CSK"},
-    "Week 4 (Apr 18 - Apr 24)": {"M22": "MI vs DC", "M23": "RR vs GT", "M24": "LSG vs SRH", "M25": "CSK vs RCB", "M26": "PBKS vs KKR", "M27": "MI vs RR", "M28": "GT vs DC"},
-    "Week 5 (Apr 25 - May 01)": {"M29": "LSG vs KKR", "M30": "RCB vs GT", "M31": "SRH vs RR", "M32": "DC vs CSK", "M33": "MI vs PBKS", "M34": "KKR vs RCB", "M35": "RR vs LSG"},
-    "Week 6 (May 02 - May 08)": {"M36": "GT vs SRH", "M37": "CSK vs MI", "M38": "PBKS vs DC", "M39": "RCB vs LSG", "M40": "RR vs KKR", "M41": "SRH vs PBKS", "M42": "GT vs CSK"},
-    "Week 7 (May 09 - May 15)": {"M43": "DC vs RCB", "M44": "LSG vs MI", "M45": "KKR vs GT", "M46": "CSK vs SRH", "M47": "PBKS vs RR", "M48": "MI vs LSG", "M49": "RCB vs DC"},
-    "Week 8 (May 16 - May 22)": {"M50": "GT vs KKR", "M51": "SRH vs CSK", "M52": "RR vs PBKS", "M53": "DC vs RR", "M54": "KKR vs PBKS", "M55": "LSG vs GT", "M56": "MI vs RCB"},
-    "Playoffs (May 23 - May 30)": {"SF1": "Qualifier 1", "SF2": "Eliminator", "SF3": "Qualifier 2", "FIN": "Grand Final"}
+    "Week 1 (Mar 28 - Apr 03)": {"lock": "2026-03-28 19:00:00", "matches": {"M01": "RCB vs SRH", "M02": "MI vs KKR", "M03": "RR vs CSK", "M04": "PBKS vs GT", "M05": "LSG vs DC", "M06": "KKR vs SRH", "M07": "CSK vs PBKS"}},
+    "Week 2 (Apr 04 - Apr 10)": {"lock": "2026-04-04 19:00:00", "matches": {"M08": "DC vs MI", "M09": "GT vs RR", "M10": "SRH vs LSG", "M11": "RCB vs CSK", "M12": "KKR vs PBKS", "M13": "RR vs MI", "M14": "DC vs GT"}},
+    "Week 3 (Apr 11 - Apr 17)": {"lock": "2026-04-11 19:00:00", "matches": {"M15": "SRH vs RCB", "M16": "KKR vs MI", "M17": "CSK vs RR", "M18": "GT vs PBKS", "M19": "DC vs LSG", "M20": "SRH vs KKR", "M21": "PBKS vs CSK"}},
+    "Week 4 (Apr 18 - Apr 24)": {"lock": "2026-04-18 19:00:00", "matches": {"M22": "MI vs DC", "M23": "RR vs GT", "M24": "LSG vs SRH", "M25": "CSK vs RCB", "M26": "PBKS vs KKR", "M27": "MI vs RR", "M28": "GT vs DC"}},
+    "Week 5 (Apr 25 - May 01)": {"lock": "2026-04-25 19:00:00", "matches": {"M29": "LSG vs KKR", "M30": "RCB vs GT", "M31": "SRH vs RR", "M32": "DC vs CSK", "M33": "MI vs PBKS", "M34": "KKR vs RCB", "M35": "RR vs LSG"}},
+    "Week 6 (May 02 - May 08)": {"lock": "2026-05-02 19:00:00", "matches": {"M36": "GT vs SRH", "M37": "CSK vs MI", "M38": "PBKS vs DC", "M39": "RCB vs LSG", "M40": "RR vs KKR", "M41": "SRH vs PBKS", "M42": "GT vs CSK"}},
+    "Week 7 (May 09 - May 15)": {"lock": "2026-05-09 19:00:00", "matches": {"M43": "DC vs RCB", "M44": "LSG vs MI", "M45": "KKR vs GT", "M46": "CSK vs SRH", "M47": "PBKS vs RR", "M48": "MI vs LSG", "M49": "RCB vs DC"}},
+    "Week 8 (May 16 - May 22)": {"lock": "2026-05-16 19:00:00", "matches": {"M50": "GT vs KKR", "M51": "SRH vs CSK", "M52": "RR vs PBKS", "M53": "DC vs RR", "M54": "KKR vs PBKS", "M55": "LSG vs GT", "M56": "MI vs RCB"}},
 }
 
 def load_db():
@@ -97,87 +97,73 @@ def load_db():
         "Varun Chakaravarthy": {"team": "KKR", "role": "BOWL", "is_overseas": False}, "Lungi Ngidi": {"team": "DC", "role": "BOWL", "is_overseas": True},
         "Jason Holder": {"team": "IPL", "role": "BOWL", "is_overseas": True}, "Mitchell Starc": {"team": "DC", "role": "BOWL", "is_overseas": True}
     }
-    initial_pools = {
-        "Kazim": list(pm.keys())[:30], "Aman": list(pm.keys())[30:52], 
-        "Aatish": list(pm.keys())[52:87], "Shrijeet": list(pm.keys())[87:114], 
-        "Nagle": list(pm.keys())[114:]
-    }
-    if not os.path.exists(DB_FILE):
-        return {"selections": {}, "scores": {}, "pools": initial_pools, "player_master": pm}
-    with open(DB_FILE, 'r') as f: data = json.load(f)
-    return data
+    initial_pools = {"Kazim": list(pm.keys())[:30], "Aman": list(pm.keys())[30:52], "Aatish": list(pm.keys())[52:87], "Shrijeet": list(pm.keys())[87:114], "Nagle": list(pm.keys())[114:]}
+    if not os.path.exists(DB_FILE): return {"selections": {}, "scores": {}, "pools": initial_pools, "player_master": pm}
+    with open(DB_FILE, 'r') as f: return json.load(f)
 
 def save_db(data):
     with open(DB_FILE, 'w') as f: json.dump(data, f)
 
 st.set_page_config(page_title="Inner Circle IPL", layout="wide")
-st.markdown("""<style>
-    .mobile-matrix { border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; height: 52px; }
-    .jersey-dot { height: 10px; width: 10px; border-radius: 50%; margin-right: 8px; }
-    .role-label { font-size: 10px; color: #64748b; font-weight: 700; }
-    .squad-view-box { background: #f1f5f9; border-radius: 10px; padding: 10px; border: 1px solid #cbd5e1; }
-    .squad-player-row { font-size: 12px; padding: 4px 0; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; }
-    .cap-badge { background: #1e293b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
-</style>""", unsafe_allow_html=True)
-
 db = load_db()
 
+# --- 2. LOCK LOGIC ---
 st.sidebar.title("🗓️ Season Schedule")
-active_week = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()))
-matches_this_week = SEASON_WEEKS[active_week]
-all_teams_this_week = []
-for fixture in matches_this_week.values():
-    teams = fixture.split(" vs ")
-    all_teams_this_week.extend(teams)
-team_counts = Counter(all_teams_this_week)
+active_week_name = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()))
+week_config = SEASON_WEEKS[active_week_name]
+lock_time = datetime.strptime(week_config["lock"], "%2026-%m-%d %H:%M:%S")
+is_locked = datetime.now() > lock_time
 
-st.sidebar.subheader("Team Match Counts")
-for team, count in sorted(team_counts.items()):
-    st.sidebar.markdown(f"**{team}**: {count} match{'es' if count > 1 else ''}")
+if is_locked: st.sidebar.error(f"🔒 Locked at {lock_time.strftime('%I:%M %p, %b %d')}")
+else: st.sidebar.success(f"🔓 Closes {lock_time.strftime('%I:%M %p, %b %d')}")
 
-st.sidebar.divider()
-for mid, fixture in matches_this_week.items():
-    st.sidebar.info(f"**{mid}:** {fixture}")
+# Match counts sidebar
+matches_this_week = week_config["matches"]
+all_teams = []
+for f in matches_this_week.values(): all_teams.extend(f.split(" vs "))
+team_counts = Counter(all_teams)
+for team, count in sorted(team_counts.items()): st.sidebar.markdown(f"**{team}**: {count}")
 
 t1, t_view, t2, t_admin = st.tabs(["🏏 MY SQUAD", "👀 ALL SQUADS", "📊 STANDINGS", "🛡️ ADMIN"])
 
-# TAB 1: SQUAD SELECTION
 with t1:
     user = st.selectbox("Manager Name", list(db["pools"].keys()))
     pool = db["pools"].get(user, [])
-    saved = db["selections"].get(active_week, {}).get(user, {"squad": [], "cap": ""})
-    state_key = f"sel_{user}_{active_week}"
+    # Get current saved selection or default
+    saved = db["selections"].get(active_week_name, {}).get(user, {"squad": [], "cap": ""})
+    state_key = f"sel_{user}_{active_week_name}"
     if state_key not in st.session_state: st.session_state[state_key] = list(saved["squad"])
-    f1, f2 = st.columns([2, 1])
-    search = f1.text_input("🔍 Search Name", placeholder="Type name...", key="src_1")
-    role_f = f2.selectbox("Role", ["All", "BAT", "BOWL", "WK"], key="rol_1")
+    
+    if is_locked: st.warning("Submission period has ended. Changes cannot be saved.")
+    
     cols = st.columns(2)
     display_idx = 0
     for p in sorted(pool):
         info = db["player_master"].get(p, {"team": "IPL", "role": "BAT", "is_overseas": False})
-        if (search.lower() in p.lower()) and (role_f == "All" or info["role"] == role_f):
-            with cols[display_idx % 2]:
-                c_cell, c_box = st.columns([4, 1])
-                with c_cell: st.markdown(f'<div class="mobile-matrix"><span class="jersey-dot" style="background:{TEAM_COLORS.get(info["team"], "#ccc")}"></span><div style="flex-grow:1; line-height:1.1;"><span style="font-size:11px; font-weight:600;">{p} {"✈️" if info["is_overseas"] else ""}</span><br><span class="role-label">{ROLE_EMOJI.get(info["role"], "BAT")}</span></div></div>', unsafe_allow_html=True)
-                with c_box:
-                    is_sel = p in st.session_state[state_key]
-                    if st.checkbox("", key=f"cb_{user}_{active_week}_{p}", value=is_sel):
-                        if p not in st.session_state[state_key]: st.session_state[state_key].append(p); st.rerun()
-                    elif p in st.session_state[state_key]: st.session_state[state_key].remove(p); st.rerun()
-            display_idx += 1
-    st.divider()
+        with cols[display_idx % 2]:
+            c_cell, c_box = st.columns([4, 1])
+            with c_cell: st.write(f"{ROLE_EMOJI.get(info['role'])} **{p}** ({info['team']})")
+            with c_box:
+                # Disable checkbox if locked
+                checked = st.checkbox("", key=f"cb_{user}_{p}", value=(p in st.session_state[state_key]), disabled=is_locked)
+                if not is_locked:
+                    if checked and p not in st.session_state[state_key]: st.session_state[state_key].append(p); st.rerun()
+                    elif not checked and p in st.session_state[state_key]: st.session_state[state_key].remove(p); st.rerun()
+        display_idx += 1
+    
     final_squad = st.session_state[state_key]
     os_count = sum(1 for p in final_squad if db["player_master"].get(p, {}).get("is_overseas"))
     wk_count = sum(1 for p in final_squad if db["player_master"].get(p, {}).get("role") == "WK")
-    st.write(f"**Squad:** {len(final_squad)}/11 | **Overseas:** {os_count}/4 | **Keepers:** {wk_count}")
+    st.write(f"**Squad:** {len(final_squad)}/11 | **Overseas:** {os_count}/4 | **WK:** {wk_count}")
+    
     if len(final_squad) == 11 and os_count <= 4 and wk_count >= 1:
-        default_cap = final_squad.index(saved["cap"]) if saved["cap"] in final_squad else 0
-        cap = st.selectbox("🛡️ Select Captain", final_squad, index=default_cap)
-        if st.button("🚀 SAVE SQUAD", type="primary", use_container_width=True):
-            if active_week not in db["selections"]: db["selections"][active_week] = {}
-            db["selections"][active_week][user] = {"squad": final_squad, "cap": cap}
-            save_db(db); st.success(f"Squad Locked!")
-    else: st.warning("⚠️ Rules: Exactly 11 Players, Max 4 Overseas, Min 1 Keeper.")
+        cap = st.selectbox("🛡️ Select Captain", final_squad, index=(final_squad.index(saved["cap"]) if saved["cap"] in final_squad else 0), disabled=is_locked)
+        if not is_locked:
+            if st.button("🚀 SAVE SQUAD", type="primary", use_container_width=True):
+                if active_week_name not in db["selections"]: db["selections"][active_week_name] = {}
+                db["selections"][active_week_name][user] = {"squad": final_squad, "cap": cap}
+                save_db(db); st.success("Squad Locked!")
+    else: st.warning("Rules: 11 Players, Max 4 Overseas, Min 1 WK.")
 
 with t_view:
     manager_list = list(db["pools"].keys())
@@ -185,94 +171,72 @@ with t_view:
     for i, mgr in enumerate(manager_list):
         with cols[i]:
             st.markdown(f"#### {mgr}")
-            s_data = db["selections"].get(active_week, {}).get(mgr, None)
-            if not s_data: st.error("No Squad")
+            s_data = db["selections"].get(active_week_name, {}).get(mgr, None)
+            if not s_data: st.info("No Current Selection")
             else:
-                st.markdown('<div class="squad-view-box">', unsafe_allow_html=True)
-                for player in sorted(s_data["squad"]):
-                    p_info = db["player_master"].get(player, {"team": "IPL", "role": "BAT", "is_overseas": False})
-                    cap_tag = '<span class="cap-badge">C</span>' if player == s_data["cap"] else ""
-                    st.markdown(f'<div class="squad-player-row"><span>{ROLE_EMOJI.get(p_info["role"], "")} {player}</span>{cap_tag}</div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+                for p in sorted(s_data["squad"]):
+                    tag = " (C)" if p == s_data["cap"] else ""
+                    st.text(f"{p}{tag}")
 
-# TAB 2: STANDINGS (METRICS + TABLE)
+# --- 3. AUTO-CARRYOVER SCORING LOGIC ---
 with t2:
     lb_data = []
-    player_weekly_pts = Counter()
     week_keys = list(SEASON_WEEKS.keys())
-    cur_idx = week_keys.index(active_week)
     
     for m in db["pools"].keys():
-        total, week, prev = 0, 0, 0
-        for idx, (wk, matches) in enumerate(SEASON_WEEKS.items()):
-            sel = db["selections"].get(wk, {}).get(m, {"squad": [], "cap": ""})
-            w_pts = 0
-            for p in sel["squad"]:
-                p_pts = 0
-                for mid in matches:
-                    s = db["scores"].get(p, {}).get(mid, {"r":0, "w":0, "c":0, "s":0})
-                    m_pts = (s.get("r",0)*1) + (s.get("w",0)*20) + (s.get("c",0)*5) + (s.get("s",0)*5)
-                    p_pts += m_pts
-                    if wk == active_week: player_weekly_pts[p] += m_pts
-                if p == sel["cap"]: p_pts *= 2
-                w_pts += p_pts
-            total += w_pts
-            if wk == active_week: week = w_pts
-            if idx < cur_idx: prev += w_pts
-        lb_data.append({"Manager": m, "Weekly": week, "Total": total, "PrevTotal": prev})
+        total, week_pts, prev_total = 0, 0, 0
+        for idx, wk_key in enumerate(week_keys):
+            # Check for current week selection
+            sel = db["selections"].get(wk_key, {}).get(m, None)
+            
+            # Carryover Logic: If current week is missing, look back through history
+            if not sel:
+                for prev_wk in reversed(week_keys[:idx]):
+                    lookback = db["selections"].get(prev_wk, {}).get(m, None)
+                    if lookback: sel = lookback; break
+            
+            # Calculate points if a squad was found (current or carryover)
+            w_sum = 0
+            if sel:
+                for p in sel["squad"]:
+                    p_pts = 0
+                    for mid, fixture in SEASON_WEEKS[wk_key]["matches"].items():
+                        s = db["scores"].get(p, {}).get(mid, {"r":0, "w":0, "c":0, "s":0})
+                        p_pts += (s.get("r",0)*1) + (s.get("w",0)*20) + (s.get("c",0)*5) + (s.get("s",0)*5)
+                    if p == sel["cap"]: p_pts *= 2
+                    w_sum += p_pts
+            
+            total += w_sum
+            if wk_key == active_week_name: week_pts = w_sum
+            if idx < week_keys.index(active_week_name): prev_total += w_sum
+            
+        lb_data.append({"Manager": m, "Weekly": week_pts, "Total": total, "Prev": prev_total})
 
     curr_rank = sorted(lb_data, key=lambda x: x['Total'], reverse=True)
-    prev_rank = sorted(lb_data, key=lambda x: x['PrevTotal'], reverse=True)
-    
-    st.subheader("📊 Current Standings")
+    st.subheader("📊 Standings")
     cols = st.columns(2)
     for i, row in enumerate(curr_rank):
-        c_pos = i + 1
-        p_pos = next(idx for idx, d in enumerate(prev_rank) if d['Manager'] == row['Manager']) + 1
-        d_lbl, d_clr = ("No Change", "off")
-        if c_pos < p_pos: d_lbl, d_clr = (f"↑ Up {p_pos-c_pos}", "normal")
-        elif c_pos > p_pos: d_lbl, d_clr = (f"↓ Down {c_pos-p_pos}", "inverse")
-        with cols[i % 2]:
-            st.metric(f"#{c_pos} {row['Manager']}", f"{row['Total']} pts", f"{row['Weekly']} ({d_lbl})", delta_color=d_clr)
+        with cols[i % 2]: st.metric(f"#{i+1} {row['Manager']}", f"{row['Total']} pts", f"{row['Weekly']} this week")
     
     st.divider()
-    st.subheader("📝 Performance Summary")
-    df_lb = pd.DataFrame(curr_rank).drop(columns=['PrevTotal'])
-    df_lb.index = range(1, len(df_lb) + 1)
-    st.table(df_lb)
-
-    st.divider()
-    st.subheader("🔥 Top Performers (This Week)")
-    if player_weekly_pts:
-        top_players = player_weekly_pts.most_common(5)
-        cols_p = st.columns(len(top_players))
-        for i, (p_name, p_val) in enumerate(top_players):
-            with cols_p[i]: st.info(f"**{p_name}**\n\n{p_val} pts")
-    else: st.write("No matches scored yet.")
+    st.table(pd.DataFrame(curr_rank).drop(columns=['Prev']))
 
 with t_admin:
-    match_opts = {f"{mid}: {txt}": mid for mid, txt in matches_this_week.items()}
-    sel_display = st.selectbox("Select Match to Score", list(match_opts.keys()))
-    sel_mid = match_opts[sel_display]
-    all_submitted = set()
-    for mgr_data in db["selections"].get(active_week, {}).values(): all_submitted.update(mgr_data["squad"])
-    teams = sel_display.split(": ")[1].split(" vs ")
-    eligible = [p for p in all_submitted if db["player_master"][p]["team"] in teams]
-    if not eligible: st.warning("No submitted players in this match.")
-    else:
-        for p in sorted(eligible):
-            with st.container():
-                st.write(f"**{p}** ({db['player_master'][p]['team']})")
-                cur = db["scores"].get(p, {}).get(sel_mid, {"r":0, "w":0, "c":0, "s":0})
-                c1, c2, c3, c4 = st.columns(4)
-                r = c1.number_input("Runs", 0, 200, int(cur["r"]), key=f"r_{sel_mid}_{p}")
-                w = c2.number_input("Wkts", 0, 10, int(cur["w"]), key=f"w_{sel_mid}_{p}")
-                c = c3.number_input("Cat/RO", 0, 10, int(cur["c"]), key=f"c_{sel_mid}_{p}")
-                s = c4.number_input("Stump", 0, 10, int(cur["s"]), key=f"s_{sel_mid}_{p}")
-                if {"r":r,"w":w,"c":c,"s":s} != cur:
-                    if p not in db["scores"]: db["scores"][p] = {}
-                    db["scores"][p][sel_mid] = {"r":r,"w":w,"c":c,"s":s}; save_db(db)
-            st.divider()
-    if st.button("RESET ALL DATA"):
-        if os.path.exists(DB_FILE): os.remove(DB_FILE)
-        st.rerun()
+    st.subheader("🛡️ Scoring")
+    sel_mid = st.selectbox("Match", list(matches_this_week.keys()))
+    teams = matches_this_week[sel_mid].split(" vs ")
+    all_p = set()
+    for wk in db["selections"].values():
+        for m_sel in wk.values(): all_p.update(m_sel["squad"])
+    eligible = [p for p in all_p if db["player_master"].get(p, {}).get("team") in teams]
+    for p in sorted(eligible):
+        cur = db["scores"].get(p, {}).get(sel_mid, {"r":0, "w":0, "c":0, "s":0})
+        cols = st.columns([2, 1, 1, 1, 1])
+        cols[0].write(p)
+        r = cols[1].number_input("R", 0, 200, cur["r"], key=f"r_{p}")
+        w = cols[2].number_input("W", 0, 10, cur["w"], key=f"w_{p}")
+        c = cols[3].number_input("C", 0, 10, cur["c"], key=f"c_{p}")
+        s = cols[4].number_input("S", 0, 10, cur["s"], key=f"s_{p}")
+        if {"r":r,"w":w,"c":c,"s":s} != cur:
+            if p not in db["scores"]: db["scores"][p] = {}
+            db["scores"][p][sel_mid] = {"r":r,"w":w,"c":c,"s":s}; save_db(db)
