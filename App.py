@@ -1,5 +1,5 @@
-# VERSION: ver01_260326_STABLE_V2
-# STATUS: Zero-Dependency Chart + Corrected Sat-Fri Schedule + All Stable Features
+# VERSION: ver01_260326_STABLE_V3
+# STATUS: Multi-View Standings Table + Corrected Sat-Fri Schedule + All Stable Features
 
 import streamlit as st
 import pandas as pd
@@ -195,10 +195,9 @@ with t_view:
                     st.markdown(f'<div class="squad-player-row"><span>{ROLE_EMOJI.get(p_info["role"], "")} {player}</span>{cap_tag}</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-# TAB 2: STANDINGS (INCLUDES CHART)
+# TAB 2: STANDINGS (METRICS + TABLE)
 with t2:
     lb_data = []
-    chart_rows = []
     player_weekly_pts = Counter()
     week_keys = list(SEASON_WEEKS.keys())
     cur_idx = week_keys.index(active_week)
@@ -218,7 +217,6 @@ with t2:
                 if p == sel["cap"]: p_pts *= 2
                 w_pts += p_pts
             total += w_pts
-            chart_rows.append({"Manager": m, "Week": wk.split(" ")[1], "Total Points": total})
             if wk == active_week: week = w_pts
             if idx < cur_idx: prev += w_pts
         lb_data.append({"Manager": m, "Weekly": week, "Total": total, "PrevTotal": prev})
@@ -226,7 +224,7 @@ with t2:
     curr_rank = sorted(lb_data, key=lambda x: x['Total'], reverse=True)
     prev_rank = sorted(lb_data, key=lambda x: x['PrevTotal'], reverse=True)
     
-    st.subheader("📊 Leaderboard")
+    st.subheader("📊 Current Standings")
     cols = st.columns(2)
     for i, row in enumerate(curr_rank):
         c_pos = i + 1
@@ -238,12 +236,10 @@ with t2:
             st.metric(f"#{c_pos} {row['Manager']}", f"{row['Total']} pts", f"{row['Weekly']} ({d_lbl})", delta_color=d_clr)
     
     st.divider()
-    st.subheader("📈 Points Progress")
-    if chart_rows:
-        df_chart = pd.DataFrame(chart_rows)
-        # Pivot for st.line_chart requirement
-        chart_pivot = df_chart.pivot(index="Week", columns="Manager", values="Total Points")
-        st.line_chart(chart_pivot)
+    st.subheader("📝 Performance Summary")
+    df_lb = pd.DataFrame(curr_rank).drop(columns=['PrevTotal'])
+    df_lb.index = range(1, len(df_lb) + 1)
+    st.table(df_lb)
 
     st.divider()
     st.subheader("🔥 Top Performers (This Week)")
