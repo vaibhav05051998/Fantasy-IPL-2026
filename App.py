@@ -3,149 +3,169 @@ import pandas as pd
 import json
 import os
 
-# --- 1. SETTINGS & SEASON SCOPE ---
-TEAM_COLORS = {'RCB': '#d11d26', 'MI': '#004ba0', 'CSK': '#fdb913', 'SRH': '#f26522', 'RR': '#ea1a85', 'KKR': '#3a225d', 'GT': '#1b2133', 'LSG': '#0057e2', 'DC': '#0078bc', 'PBKS': '#dd1f2d', 'IPL': '#000080'}
+# --- 1. CONFIGURATION & SEASON CALENDAR ---
+TEAM_COLORS = {
+    'RCB': '#d11d26', 'MI': '#004ba0', 'CSK': '#fdb913', 'SRH': '#f26522',
+    'RR': '#ea1a85', 'KKR': '#3a225d', 'GT': '#1b2133', 'LSG': '#0057e2',
+    'DC': '#0078bc', 'PBKS': '#dd1f2d', 'IPL': '#000080'
+}
+
 ROLE_EMOJI = {'BAT': '🏏', 'BOWL': '⚾', 'WK': '🧤'}
 
 SEASON_WEEKS = {
     "Week 1 (Mar 28 - Apr 03)": {"M01": "RCB vs SRH", "M02": "MI vs KKR", "M03": "RR vs CSK", "M04": "PBKS vs GT", "M05": "LSG vs DC", "M06": "KKR vs SRH", "M07": "CSK vs PBKS"},
     "Week 2 (Apr 04 - Apr 10)": {"M08": "DC vs MI", "M09": "GT vs RR", "M10": "SRH vs LSG", "M11": "RCB vs CSK", "M12": "KKR vs PBKS", "M13": "RR vs MI", "M14": "DC vs GT"},
-    "Playoffs": {"SF1": "TBD vs TBD", "SF2": "TBD vs TBD", "FIN": "Final Match"}
+    "Week 3 (Apr 11 - Apr 17)": {"M15": "SRH vs RCB", "M16": "KKR vs MI", "M17": "CSK vs RR", "M18": "GT vs PBKS", "M19": "DC vs LSG", "M20": "SRH vs KKR", "M21": "PBKS vs CSK"},
+    "Week 4 (Apr 18 - Apr 24)": {"M22": "MI vs DC", "M23": "RR vs GT", "M24": "LSG vs SRH", "M25": "CSK vs RCB", "M26": "PBKS vs KKR", "M27": "MI vs RR", "M28": "GT vs DC"},
+    "Week 5 (Apr 25 - May 01)": {"M29": "LSG vs KKR", "M30": "RCB vs GT", "M31": "SRH vs RR", "M32": "DC vs CSK", "M33": "MI vs PBKS", "M34": "KKR vs RCB", "M35": "RR vs LSG"},
+    "Week 6 (May 02 - May 08)": {"M36": "GT vs SRH", "M37": "CSK vs MI", "M38": "PBKS vs DC", "M39": "RCB vs LSG", "M40": "RR vs KKR", "M41": "SRH vs PBKS", "M42": "GT vs CSK"},
+    "Week 7 (May 09 - May 15)": {"M43": "DC vs RCB", "M44": "LSG vs MI", "M45": "KKR vs GT", "M46": "CSK vs SRH", "M47": "PBKS vs RR", "M48": "MI vs LSG", "M49": "RCB vs DC"},
+    "Week 8 (May 16 - May 22)": {"M50": "GT vs KKR", "M51": "SRH vs CSK", "M52": "RR vs PBKS", "M53": "DC vs RR", "M54": "KKR vs PBKS", "M55": "LSG vs GT", "M56": "MI vs RCB"},
+    "Playoffs (May 23 - May 30)": {"SF1": "Qualifier 1", "SF2": "Eliminator", "SF3": "Qualifier 2", "FIN": "Grand Final"}
 }
 
-# --- 2. UI STYLING (Matrix & Leaderboard) ---
-st.set_page_config(page_title="Inner Circle IPL", layout="wide")
+# --- 2. MOBILE-FIRST UI STYLING ---
+st.set_page_config(page_title="Inner Circle IPL", layout="centered")
 st.markdown("""
 <style>
-    .rule-box { background: #fffbeb; border: 1px solid #fcd34d; padding: 10px; border-radius: 8px; font-size: 13px; margin-bottom: 10px; }
-    .matrix-cell { border: 1px solid #e2e8f0; padding: 4px 8px; border-radius: 4px; background: #fff; display: flex; align-items: center; justify-content: space-between; height: 35px; }
-    .jersey-dot { height: 8px; width: 8px; border-radius: 50%; margin-right: 6px; }
-    .lb-card { background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #cbd5e1; text-align: center; }
-    .total-pts { color: #e11d48; font-size: 1.8rem; font-weight: 800; display: block; }
+    .mobile-matrix { border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; height: 42px; }
+    .jersey-dot { height: 8px; width: 8px; border-radius: 50%; margin-right: 5px; }
+    .lb-card { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; text-align: center; margin-bottom: 10px; }
+    .total-pts { color: #e11d48; font-size: 1.4rem; font-weight: 800; display: block; }
+    .rule-box { background: #fffbeb; border: 1px solid #fcd34d; padding: 8px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. DATA ENGINE ---
+# --- 3. DATABASE ENGINE ---
 DB_FILE = 'tournament_db.json'
 def load_db():
     if os.path.exists(DB_FILE):
-        with open(DB_FILE, 'r') as f: return json.load(f)
+        try:
+            with open(DB_FILE, 'r') as f: return json.load(f)
+        except: pass
     return {"selections": {}, "scores": {}, "pools": {}, "player_master": {}}
+
+def save_db(data):
+    with open(DB_FILE, 'w') as f: json.dump(data, f)
 
 db = load_db()
 
-# --- 4. SIDEBAR SCHEDULE ---
-st.sidebar.title("🗓️ Schedule")
-sel_week = st.sidebar.selectbox("Active Week", list(SEASON_WEEKS.keys()))
-current_matches = SEASON_WEEKS[sel_week]
+# --- 4. NAVIGATION & SIDEBAR ---
+st.sidebar.title("🗓️ Season Logic")
+active_week = st.sidebar.selectbox("Active Week", list(SEASON_WEEKS.keys()))
 
-for mid, m_text in current_matches.items():
-    st.sidebar.markdown(f"**{mid}:** {m_text}")
-
-# --- 5. MAIN APP ---
 st.title("🏆 Inner Circle IPL 2026")
-t1, t2, t3 = st.tabs(["🏏 SQUAD SELECTION", "📊 STANDINGS", "🛡️ ADMIN"])
+t1, t2, t3 = st.tabs(["🏏 SQUAD", "📊 STANDINGS", "🛡️ ADMIN"])
 
-# --- TAB 1: SQUAD SELECTION (MATRIX MODE) ---
+# --- TAB 1: SQUAD SELECTION (MOBILE MATRIX) ---
 with t1:
     st.markdown('<div class="rule-box"><b>Rules:</b> 11 Players | Max 4 Overseas (✈️) | 1 Captain (2x Pts)</div>', unsafe_allow_html=True)
     
-    user = st.selectbox("Select Manager", list(db["pools"].keys()))
-    pool = db["pools"].get(user, [])
-    saved = db["selections"].get(sel_week, {}).get(user, {"squad": [], "cap": ""})
-    
-    # Selection Matrix
-    selected, os_count = [], 0
-    cols = st.columns(5) # 5-Column Matrix for zero scrolling
-    
-    for idx, p in enumerate(pool):
-        p_info = db["player_master"].get(p, {'team': 'IPL', 'role': 'BAT', 'is_overseas': False})
-        color = TEAM_COLORS.get(p_info['team'], '#ccc')
-        os_icon = "✈️" if p_info['is_overseas'] else ""
+    if not db["pools"]:
+        st.info("No manager pools found. Go to Admin to add players.")
+    else:
+        user = st.selectbox("Select Manager", list(db["pools"].keys()))
+        pool = db["pools"].get(user, [])
+        saved = db["selections"].get(active_week, {}).get(user, {"squad": [], "cap": ""})
         
-        with cols[idx % 5]:
-            # Matrix Cell: Info and Checkbox on one line
-            c_info, c_check = st.columns([4, 1])
-            with c_info:
-                st.markdown(f'<div class="matrix-cell"><span class="jersey-dot" style="background:{color}"></span><span style="font-size:12px; overflow:hidden; white-space:nowrap;">{p} {os_icon}</span></div>', unsafe_allow_html=True)
-            with c_check:
-                if st.checkbox("", key=f"m_{user}_{p}", value=(p in saved["squad"]), label_visibility="collapsed"):
-                    selected.append(p)
-                    if p_info['is_overseas']: os_count += 1
+        selected, os_count = [], 0
+        cols = st.columns(2) # Mobile Grid
+        
+        for idx, p in enumerate(pool):
+            p_info = db["player_master"].get(p, {'team': 'IPL', 'role': 'BAT', 'is_overseas': False})
+            color = TEAM_COLORS.get(p_info['team'], '#ccc')
+            os_icon = "✈️" if p_info['is_overseas'] else ""
+            
+            with cols[idx % 2]:
+                c_info, c_check = st.columns([4, 1])
+                with c_info:
+                    st.markdown(f'<div class="mobile-matrix"><span class="jersey-dot" style="background:{color}"></span><span style="font-size:12px; overflow:hidden;">{p} {os_icon}</span></div>', unsafe_allow_html=True)
+                with c_check:
+                    if st.checkbox("", key=f"m_{user}_{p}", value=(p in saved["squad"]), label_visibility="collapsed"):
+                        selected.append(p)
+                        if p_info['is_overseas']: os_count += 1
 
-    st.divider()
-    
-    # Status & Action Bar
-    if len(selected) > 0:
-        st.subheader("🚀 Finalize Your Squad")
-        stat_col1, stat_col2, act_col = st.columns([1, 1, 2])
-        
-        stat_col1.metric("Squad", f"{len(selected)}/11")
-        stat_col2.metric("Overseas", f"{os_count}/4")
-        
-        with act_col:
+        st.divider()
+        if len(selected) > 0:
+            st.write(f"**Picked:** {len(selected)}/11 | **Overseas:** {os_count}/4")
             if len(selected) == 11:
                 if os_count <= 4:
-                    cap = st.selectbox("🛡️ Choose Captain", selected, index=selected.index(saved["cap"]) if saved["cap"] in selected else 0)
-                    if st.button("✅ LOCK & SUBMIT SQUAD", use_container_width=True, type="primary"):
-                        if sel_week not in db["selections"]: db["selections"][sel_week] = {}
-                        db["selections"][sel_week][user] = {"squad": selected, "cap": cap}
-                        # save_db(db) # Call your save function here
-                        st.success(f"Squad for {sel_week} submitted successfully!")
-                else:
-                    st.error("Too many Overseas players (Max 4)!")
-            else:
-                st.warning(f"Pick {11 - len(selected)} more players to enable submission.")
+                    cap = st.selectbox("🛡️ Select Captain", selected, index=selected.index(saved["cap"]) if saved["cap"] in selected else 0)
+                    if st.button("🚀 SUBMIT SQUAD", type="primary", use_container_width=True):
+                        if active_week not in db["selections"]: db["selections"][active_week] = {}
+                        db["selections"][active_week][user] = {"squad": selected, "cap": cap}
+                        save_db(db)
+                        st.success("Squad Locked!")
+                else: st.error("Too many Overseas (Max 4)!")
+            else: st.warning(f"Pick {11-len(selected)} more players.")
 
-# --- TAB 2: STANDINGS (REVERTED TO BEST VERSION) ---
+# --- TAB 2: STANDINGS (REVERTED CARD LAYOUT) ---
 with t2:
     st.subheader("📊 Leaderboard")
     lb_data = []
-    
-    # Calculate for all managers
     managers = list(db["pools"].keys())
-    lb_cols = st.columns(len(managers))
-    
-    for i, m in enumerate(managers):
-        w_pts, t_pts = 0, 0
-        # Total Season Logic
-        for wk, matches in SEASON_WEEKS.items():
-            sel = db["selections"].get(wk, {}).get(m, {"squad": [], "cap": ""})
-            week_total = 0
-            for p in sel["squad"]:
-                p_sc = db["scores"].get(p, {})
-                pts = sum([v for k, v in p_sc.items() if k in matches])
-                week_total += (pts * 2) if p == sel["cap"] else pts
+    if managers:
+        lb_cols = st.columns(2)
+        for i, m in enumerate(managers):
+            w_pts, t_pts = 0, 0
+            for wk, matches in SEASON_WEEKS.items():
+                sel = db["selections"].get(wk, {}).get(m, {"squad": [], "cap": ""})
+                week_total = 0
+                for p in sel["squad"]:
+                    p_sc = db["scores"].get(p, {})
+                    match_pts = sum([v for k, v in p_sc.items() if k in matches])
+                    week_total += (match_pts * 2) if p == sel["cap"] else match_pts
+                t_pts += week_total
+                if wk == active_week: w_pts = week_total
             
-            t_pts += week_total
-            if wk == sel_week: w_pts = week_total
-            
-        lb_data.append({"Manager": m, "Weekly": w_pts, "Total": t_pts})
+            lb_data.append({"Manager": m, "Weekly": w_pts, "Total": t_pts})
+            with lb_cols[i % 2]:
+                st.markdown(f'<div class="lb-card"><b>{m}</b><br><small>Week: {w_pts}</small><span class="total-pts">{t_pts}</span></div>', unsafe_allow_html=True)
         
-        with lb_cols[i]:
-            st.markdown(f"""
-                <div class="lb-card">
-                    <b style="font-size:1.2rem;">{m}</b><br>
-                    <small>Week Pts: {w_pts}</small>
-                    <span class="total-pts">{t_pts}</span>
-                </div>
-            """, unsafe_allow_html=True)
+        st.divider()
+        st.dataframe(pd.DataFrame(lb_data).sort_values("Total", ascending=False), use_container_width=True)
+
+# --- TAB 3: ADMIN ---
+with t3:
+    st.subheader("🛡️ Admin Panel")
+    
+    # 1. SCORING SECTION
+    st.write("### 🏏 Input Match Scores")
+    match_list = {f"{mid}: {txt}": mid for wk in SEASON_WEEKS.values() for mid, txt in wk.items()}
+    sel_display = st.selectbox("Select Match ID & Teams", list(match_list.keys()))
+    sel_mid = match_list[sel_display]
+    
+    # Filter players from the match teams
+    match_teams = sel_display.split(": ")[1].split(" vs ")
+    eligible = [p for p, info in db["player_master"].items() if info['team'] in match_teams]
+    
+    if not eligible: st.info("No players from these teams found in the master list.")
+    else:
+        for p in sorted(eligible):
+            with st.expander(f"Score: {p} ({db['player_master'][p]['team']})"):
+                cur = db["scores"].get(p, {}).get(sel_mid, 0)
+                score = st.number_input(f"Points for {p}", 0, value=int(cur), key=f"sc_{sel_mid}_{p}")
+                if st.button(f"Save {p}"):
+                    if p not in db["scores"]: db["scores"][p] = {}
+                    db["scores"][p][sel_mid] = score
+                    save_db(db)
+                    st.toast(f"Saved {p}!")
 
     st.divider()
-    st.subheader("Full Season Breakdown")
-    st.dataframe(pd.DataFrame(lb_data).sort_values("Total", ascending=False), use_container_width=True)
-
-# --- TAB 3: ADMIN (REMAINS SMART MATCH-BASED) ---
-with t3:
-    st.subheader("🛡️ Scoring Console")
-    all_match_ids = [mid for w in SEASON_WEEKS.values() for mid in w.keys()]
-    sel_mid = st.selectbox("Select Match ID to Score", all_match_ids)
     
-    # Match context
-    m_context = "Unknown Match"
-    for w in SEASON_WEEKS.values():
-        if sel_mid in w: m_context = w[sel_mid]
-    
-    st.info(f"Inputting Scores for **{sel_mid}: {m_context}**")
-    # ... (Smart filtering logic from previous version follows)
-    
+    # 2. NUCLEAR CLEAR BUTTON (TRIPLE PROTECTION)
+    st.write("### ⚠️ Danger Zone")
+    with st.expander("Reset Tournament Scores & Squads"):
+        st.warning("This will delete all weekly selections and scores. Manager pools will be kept.")
+        confirm_text = st.text_input("Type 'DELETE' to verify")
+        safety_check = st.checkbox("I confirm I want to wipe tournament data.")
+        
+        if st.button("🔥 CLEAR ALL DATA"):
+            if confirm_text == "DELETE" and safety_check:
+                db["selections"] = {}
+                db["scores"] = {}
+                save_db(db)
+                st.error("All data wiped! Refreshing...")
+                st.rerun()
+            else:
+                st.warning("Complete safety checks to enable button.")
