@@ -7,7 +7,6 @@ from collections import Counter
 from datetime import datetime
 
 # --- ROBUST PATH HANDLING ---
-# This ensures players.py is found regardless of where the app is hosted
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.append(current_dir)
@@ -15,7 +14,7 @@ if current_dir not in sys.path:
 try:
     from players import PLAYER_MASTER
 except ImportError:
-    st.error("Error: 'players.py' not found in the repository root. Please ensure both files are in the same folder.")
+    st.error("Error: 'players.py' not found in the repository root.")
     st.stop()
 
 # --- 1. CONFIGURATION ---
@@ -36,7 +35,6 @@ SEASON_WEEKS = {
 def load_db():
     if not os.path.exists(DB_FILE):
         players = list(PLAYER_MASTER.keys())
-        # Static pools for Kazim, Aman, Aatish, Shrijeet, and Nagle
         return {
             "selections": {}, 
             "pools": {
@@ -54,7 +52,6 @@ def save_db(data):
 # --- 3. UI RENDERER ---
 st.set_page_config(page_title="Inner Circle IPL 2026", layout="wide")
 
-# Mobile-Optimized CSS
 st.markdown("""<style>
     .mobile-matrix { border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; height: 50px; }
     .jersey-dot { height: 10px; width: 10px; border-radius: 50%; margin-right: 8px; }
@@ -74,28 +71,27 @@ if state_key not in st.session_state:
     saved = db["selections"].get(week_label, {}).get(manager, {}).get("squad", [])
     st.session_state[state_key] = list(saved)
 
-# Search & Filter
 f1, f2 = st.columns(2)
 search_query = f1.text_input("🔍 Search Player")
 team_filter = f2.selectbox("Team Filter", ["All Teams"] + list(TEAM_COLORS.keys()))
 
-# Player Selection Grid (2-Column Matrix)
 cols = st.columns(2)
 players_to_show = [p for p in pool if search_query.lower() in p.lower()]
 
 for i, p in enumerate(sorted(players_to_show)):
     info = PLAYER_MASTER.get(p)
-    if team_filter != "All Teams" and info["team"] != team_filter:
+    if team_filter != "All Teams" and info['team'] != team_filter:
         continue
     
     with cols[i % 2]:
         c_main, c_chk = st.columns([4, 1])
         with c_main:
+            # FIXED: Using single quotes for dictionary keys inside f-string
             st.markdown(f'''<div class="mobile-matrix">
-                <span class="jersey-dot" style="background:{TEAM_COLORS.get(info["team"])}"></span>
+                <span class="jersey-dot" style="background:{TEAM_COLORS.get(info['team'])}"></span>
                 <div style="flex-grow:1; line-height:1.1;">
-                    <span style="font-size:11px; font-weight:600;">{p} ({info["team"]})</span><br>
-                    <span class="role-label">{ROLE_EMOJI.get(info["role"])} {info["role"]}</span>
+                    <span style="font-size:11px; font-weight:600;">{p} ({info['team']})</span><br>
+                    <span class="role-label">{ROLE_EMOJI.get(info['role'])} {info['role']}</span>
                 </div>
             </div>''', unsafe_allow_html=True)
         with c_chk:
@@ -108,7 +104,6 @@ for i, p in enumerate(sorted(players_to_show)):
                 st.session_state[state_key].remove(p)
                 st.rerun()
 
-# Validation Section
 squad = st.session_state[state_key]
 roles = Counter([PLAYER_MASTER[p]["role"] for p in squad])
 os_count = sum(1 for p in squad if PLAYER_MASTER[p]["is_overseas"])
@@ -124,4 +119,4 @@ if len(squad) == 11 and roles['BOWL'] >= 4 and roles['WK'] >= 1 and os_count <= 
         save_db(db)
         st.success("Squad locked successfully!")
 else:
-    st.warning("Requirements: 11 players total, at least 4 bowlers, at least 1 keeper, and max 4 overseas players.")
+    st.warning("Requirements: 11 players total, 4+ bowlers, 1+ keeper, max 4 overseas.")
