@@ -24,19 +24,7 @@ SEASON_WEEKS = {
     "Playoffs (May 23 - May 30)": {"SF1": "Qualifier 1", "SF2": "Eliminator", "SF3": "Qualifier 2", "FIN": "Grand Final"}
 }
 
-# --- 2. MOBILE-FIRST UI STYLING ---
-st.set_page_config(page_title="Inner Circle IPL", layout="centered")
-st.markdown("""
-<style>
-    .mobile-matrix { border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; height: 42px; }
-    .jersey-dot { height: 8px; width: 8px; border-radius: 50%; margin-right: 5px; }
-    .lb-card { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; text-align: center; margin-bottom: 10px; }
-    .total-pts { color: #e11d48; font-size: 1.5rem; font-weight: 800; display: block; }
-    .rule-box { background: #fffbeb; border: 1px solid #fcd34d; padding: 8px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; }
-</style>
-""", unsafe_allow_html=True)
-
-# --- 3. DATABASE ENGINE ---
+# --- 2. DATABASE HELPERS ---
 DB_FILE = 'tournament_db.json'
 def load_db():
     if os.path.exists(DB_FILE):
@@ -50,15 +38,48 @@ def save_db(data):
 
 db = load_db()
 
-# --- 4. NAVIGATION ---
+# --- 3. MOBILE UI STYLING ---
+st.set_page_config(page_title="Inner Circle IPL", layout="centered")
+st.markdown("""
+<style>
+    .mobile-matrix { border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; height: 42px; }
+    .jersey-dot { height: 8px; width: 8px; border-radius: 50%; margin-right: 5px; }
+    .lb-card { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; text-align: center; margin-bottom: 10px; }
+    .total-pts { color: #e11d48; font-size: 1.5rem; font-weight: 800; display: block; }
+    .rule-box { background: #fffbeb; border: 1px solid #fcd34d; padding: 8px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; }
+    .match-pill { background: #f1f5f9; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; color: #475569; }
+</style>
+""", unsafe_allow_html=True)
+
+# --- 4. SIDEBAR MATCH LOGIC ---
+st.sidebar.title("🗓️ Season Schedule")
+active_week = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()))
+
+# Calculate matches per team for the selected week
+week_matches = SEASON_WEEKS[active_week]
+team_counts = {}
+for m_text in week_matches.values():
+    teams = m_text.split(" vs ")
+    for t in teams:
+        team_counts[t] = team_counts.get(t, 0) + 1
+
+st.sidebar.markdown("### Team Activity")
+cols_sidebar = st.sidebar.columns(2)
+for i, (t, count) in enumerate(sorted(team_counts.items())):
+    cols_sidebar[i % 2].markdown(f"**{t}:** {count} {'Match' if count==1 else 'Matches'}")
+
+st.sidebar.divider()
+st.sidebar.markdown("### Weekly Fixtures")
+for mid, fixture in week_matches.items():
+    st.sidebar.markdown(f"<span class='match-pill'>{mid}</span> {fixture}", unsafe_allow_html=True)
+
+# --- 5. MAIN NAVIGATION ---
 st.title("🏆 Inner Circle IPL 2026")
-active_week = st.sidebar.selectbox("Active Week", list(SEASON_WEEKS.keys()))
 t1, t2, t3 = st.tabs(["🏏 SQUAD", "📊 STANDINGS", "🛡️ ADMIN"])
 
-# --- TAB 1: SQUAD SELECTION (MOBILE MATRIX) ---
+# --- TAB 1: SQUAD SELECTION ---
 with t1:
     st.markdown('<div class="rule-box"><b>Rules:</b> 11 Players | Max 4 Overseas (✈️) | 1 Captain (2x Pts)</div>', unsafe_allow_html=True)
-    
     managers = list(db["pools"].keys())
     if not managers:
         st.info("Setup pools in Admin first!")
@@ -68,17 +89,13 @@ with t1:
         saved = db["selections"].get(active_week, {}).get(user, {"squad": [], "cap": ""})
         
         selected, os_count = [], 0
-        cols = st.columns(2) # Mobile Grid
-        
+        cols = st.columns(2)
         for idx, p in enumerate(pool):
-            p_info = db["player_master"].get(p, {'team': 'IPL', 'role': 'BAT', 'is_overseas': False})
-            color = TEAM_COLORS.get(p_info['team'], '#ccc')
-            os_icon = "✈️" if p_info['is_overseas'] else ""
-            
+            p_info = db["player_master"].get(p, {'team': 'IPL', 'is_overseas': False})
             with cols[idx % 2]:
                 c_info, c_check = st.columns([4, 1])
                 with c_info:
-                    st.markdown(f'<div class="mobile-matrix"><span class="jersey-dot" style="background:{color}"></span><span style="font-size:12px;">{p} {os_icon}</span></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="mobile-matrix"><span class="jersey-dot" style="background:{TEAM_COLORS.get(p_info["team"], "#ccc")}"></span><span style="font-size:12px;">{p} {"✈️" if p_info["is_overseas"] else ""}</span></div>', unsafe_allow_html=True)
                 with c_check:
                     if st.checkbox("", key=f"m_{user}_{p}", value=(p in saved["squad"]), label_visibility="collapsed"):
                         selected.append(p)
@@ -94,9 +111,8 @@ with t1:
                     db["selections"][active_week][user] = {"squad": selected, "cap": cap}
                     save_db(db)
                     st.success("Squad Locked!")
-            elif os_count > 4: st.error("Too many Overseas (Max 4)!")
 
-# --- TAB 2: STANDINGS (THE FIXED SECTION) ---
+# --- TAB 2: STANDINGS ---
 with t2:
     st.subheader("📊 Leaderboard")
     managers = list(db["pools"].keys())
@@ -106,7 +122,6 @@ with t2:
         lb_data = []
         num_cols = min(len(managers), 2)
         lb_cols = st.columns(num_cols)
-        
         for i, m in enumerate(managers):
             t_pts, w_pts = 0, 0
             for wk, matches in SEASON_WEEKS.items():
@@ -118,11 +133,9 @@ with t2:
                     week_total += (pts * 2) if p == sel["cap"] else pts
                 t_pts += week_total
                 if wk == active_week: w_pts = week_total
-            
             lb_data.append({"Manager": m, "Weekly": w_pts, "Total": t_pts})
             with lb_cols[i % num_cols]:
                 st.markdown(f'<div class="lb-card"><b>{m}</b><br><small>Week: {w_pts}</small><span class="total-pts">{t_pts}</span></div>', unsafe_allow_html=True)
-        
         st.divider()
         st.dataframe(pd.DataFrame(lb_data).sort_values("Total", ascending=False), use_container_width=True, hide_index=True)
 
@@ -130,16 +143,14 @@ with t2:
 with t3:
     st.subheader("🛡️ Admin Panel")
     
-    st.write("### 🏏 Input Match Scores")
-    match_list = {f"{mid}: {txt}": mid for wk in SEASON_WEEKS.values() for mid, txt in wk.items()}
-    sel_display = st.selectbox("Select Match ID & Teams", list(match_list.keys()))
-    sel_mid = match_list[sel_display]
-    
-    match_teams = sel_display.split(": ")[1].split(" vs ")
-    eligible = [p for p, info in db["player_master"].items() if info['team'] in match_teams]
-    
-    if not eligible: st.info("No players found for these teams.")
-    else:
+    adm_t1, adm_t2, adm_t3 = st.tabs(["📝 SCORING", "👥 MANAGE SQUADS", "⚙️ SYSTEM"])
+
+    with adm_t1:
+        match_list = {f"{mid}: {txt}": mid for wk in SEASON_WEEKS.values() for mid, txt in wk.items()}
+        sel_display = st.selectbox("Select Match to Score", list(match_list.keys()))
+        sel_mid = match_list[sel_display]
+        match_teams = sel_display.split(": ")[1].split(" vs ")
+        eligible = [p for p, info in db["player_master"].items() if info['team'] in match_teams]
         for p in sorted(eligible):
             with st.expander(f"Score: {p} ({db['player_master'][p]['team']})"):
                 cur = db["scores"].get(p, {}).get(sel_mid, 0)
@@ -150,16 +161,44 @@ with t3:
                     save_db(db)
                     st.toast(f"Saved {p}!")
 
-    st.divider()
-    with st.expander("⚠️ Reset Tournament Data"):
-        st.warning("Deletes scores and squad picks. Pools stay.")
-        confirm_text = st.text_input("Type 'DELETE' to verify")
-        safety_check = st.checkbox("Confirm wipe")
+    with adm_t2:
+        st.write("### Manage Manager Pools")
+        m_to_edit = st.selectbox("Select Manager to Edit", list(db["pools"].keys()) if db["pools"] else ["Add New"])
         
-        if st.button("🔥 CLEAR ALL DATA"):
-            if confirm_text == "DELETE" and safety_check:
-                db["selections"], db["scores"] = {}, {}
+        if m_to_edit == "Add New":
+            new_m = st.text_input("New Manager Name")
+            if st.button("Create Manager"):
+                db["pools"][new_m] = []
                 save_db(db)
-                st.error("Data Wiped!")
                 st.rerun()
-        
+        else:
+            current_pool = db["pools"][m_to_edit]
+            st.write(f"Current Pool Size: {len(current_pool)}")
+            
+            # Dropdown to Add Players (from master list)
+            all_players = sorted(list(db["player_master"].keys()))
+            available = [p for p in all_players if p not in current_pool]
+            p_to_add = st.selectbox("Add Player to Pool", ["Select Player"] + available)
+            if p_to_add != "Select Player":
+                if st.button(f"Add {p_to_add}"):
+                    db["pools"][m_to_edit].append(p_to_add)
+                    save_db(db)
+                    st.rerun()
+            
+            # Dropdown to Remove Players
+            if current_pool:
+                p_to_rem = st.selectbox("Remove Player from Pool", ["Select Player"] + current_pool)
+                if p_to_rem != "Select Player":
+                    if st.button(f"Remove {p_to_rem}"):
+                        db["pools"][m_to_edit].remove(p_to_rem)
+                        save_db(db)
+                        st.rerun()
+
+    with adm_t3:
+        with st.expander("⚠️ Reset Tournament Data"):
+            confirm_text = st.text_input("Type 'DELETE' to verify")
+            if st.button("🔥 CLEAR SCORES & SQUADS"):
+                if confirm_text == "DELETE":
+                    db["selections"], db["scores"] = {}, {}
+                    save_db(db)
+                    st.rerun()
