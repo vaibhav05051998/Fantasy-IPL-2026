@@ -28,8 +28,6 @@ SEASON_WEEKS = {
 # --- 2. DATABASE ENGINE ---
 def load_db():
     pm = {
-        # ... (Player Master Data as per previous version)
-        # KAZIM
         "Rajat Patidar": {"team": "RCB", "role": "BAT", "is_overseas": False}, "Devdutt Padikkal": {"team": "LSG", "role": "BAT", "is_overseas": False},
         "Shimron Hetmyer": {"team": "RR", "role": "BAT", "is_overseas": True}, "Dhruv Jurel": {"team": "RR", "role": "WK", "is_overseas": False},
         "Vaibhav Suryavanshi": {"team": "RR", "role": "BAT", "is_overseas": False}, "Priyansh Arya": {"team": "PBKS", "role": "BAT", "is_overseas": False},
@@ -45,7 +43,6 @@ def load_db():
         "Ravi Bishnoi": {"team": "LSG", "role": "BOWL", "is_overseas": False}, "Avesh Khan": {"team": "RR", "role": "BOWL", "is_overseas": False},
         "Ravi Sai Kishore": {"team": "GT", "role": "BOWL", "is_overseas": False}, "Noor Ahmad": {"team": "GT", "role": "BOWL", "is_overseas": True},
         "Blessing Muzarabani": {"team": "PBKS", "role": "BOWL", "is_overseas": True}, "Lockie Ferguson": {"team": "RCB", "role": "BOWL", "is_overseas": True},
-        # AMAN
         "Phil Salt": {"team": "KKR", "role": "WK", "is_overseas": True}, "Yashasvi Jaiswal": {"team": "RR", "role": "BAT", "is_overseas": False},
         "Prabhsimran Singh": {"team": "PBKS", "role": "WK", "is_overseas": False}, "Nicholas Pooran": {"team": "LSG", "role": "WK", "is_overseas": True},
         "Tim Seifert": {"team": "DC", "role": "WK", "is_overseas": True}, "Shubman Gill": {"team": "GT", "role": "BAT", "is_overseas": False},
@@ -57,7 +54,6 @@ def load_db():
         "Yuzvendra Chahal": {"team": "PBKS", "role": "BOWL", "is_overseas": False}, "AM Ghazanfar": {"team": "MI", "role": "BOWL", "is_overseas": True},
         "Digvesh Singh": {"team": "MI", "role": "BOWL", "is_overseas": False}, "Prasidh Krishna": {"team": "GT", "role": "BOWL", "is_overseas": False},
         "Umran Malik": {"team": "SRH", "role": "BOWL", "is_overseas": False}, "Vipraj Nigam": {"team": "RR", "role": "BOWL", "is_overseas": False},
-        # AATISH
         "Tim David": {"team": "MI", "role": "BAT", "is_overseas": True}, "Jitesh Sharma": {"team": "PBKS", "role": "WK", "is_overseas": False},
         "Nehal Wadhera": {"team": "MI", "role": "BAT", "is_overseas": False}, "Quinton de Kock": {"team": "LSG", "role": "WK", "is_overseas": True},
         "Sherfane Rutherford": {"team": "KKR", "role": "BAT", "is_overseas": True}, "Rohit Sharma": {"team": "MI", "role": "BAT", "is_overseas": False},
@@ -75,23 +71,20 @@ def load_db():
         "Kuldeep Yadav": {"team": "DC", "role": "BOWL", "is_overseas": False}, "Khaleel Ahmed": {"team": "DC", "role": "BOWL", "is_overseas": False},
         "Mukesh Choudhary": {"team": "CSK", "role": "BOWL", "is_overseas": False}, "Rahul Chahar": {"team": "PBKS", "role": "BOWL", "is_overseas": False},
         "Mayank Yadav": {"team": "LSG", "role": "BOWL", "is_overseas": False}, "Harpreet Brar": {"team": "PBKS", "role": "BOWL", "is_overseas": False},
-        "Tushar Deshpande": {"team": "RR", "role": "BOWL", "is_overseas": False},
-        # SHRIJEET
-        "Travis Head": {"team": "SRH", "role": "BAT", "is_overseas": True}, "Ishan Kishan": {"team": "SRH", "role": "WK", "is_overseas": False},
-        "Riyan Parag": {"team": "RR", "role": "BAT", "is_overseas": False}, "Shreyas Iyer": {"team": "PBKS", "role": "BAT", "is_overseas": False},
-        "Ayush Badoni": {"team": "LSG", "role": "BAT", "is_overseas": False}, "Himmat Singh": {"team": "IPL", "role": "BAT", "is_overseas": False},
-        "Manish Pandey": {"team": "KKR", "role": "BAT", "is_overseas": False}, "Ajinkya Rahane": {"team": "CSK", "role": "BAT", "is_overseas": False},
-        "Sai Sudharsan": {"team": "GT", "role": "BAT", "is_overseas": False}, "Prithvi Shaw": {"team": "DC", "role": "BAT", "is_overseas": False},
-        "Karun Nair": {"team": "IPL", "role": "BAT", "is_overseas": False}, "Abishek Porel": {"team": "DC", "role": "WK", "is_overseas": False},
-        "Sarfaraz Khan": {"team": "DC", "role": "BAT", "is_overseas": False}, "Ruturaj Gaikwad": {"team": "CSK", "role": "BAT", "is_overseas": False},
-        "Ramakrishna Ghosh": {"team": "IPL", "role": "BOWL", "is_overseas": False}, "Mitchell Marsh": {"team": "DC", "role": "BAT", "is_overseas": True},
-        "Krunal Pandya": {"team": "RCB", "role": "BOWL", "is_overseas": False}, "Venkatesh Iyer": {"team": "KKR", "role": "BAT", "is_overseas": False},
-        "Jaydev Unadkat": {"team": "SRH", "role": "BOWL", "is_overseas": False}, "Suyash Sharma": {"team": "KKR", "role": "BOWL", "is_overseas": False},
-        "Sandeep Sharma": {"team": "RR", "role": "BOWL", "is_overseas": False}, "Arshdeep Singh": {"team": "PBKS", "role": "BOWL", "is_overseas": False},
-        "Trent Boult": {"team": "MI", "role": "BOWL", "is_overseas": True}, "Mohammed Shami": {"team": "SRH", "role": "BOWL", "is_overseas": False},
-        "Kagiso Rabada": {"team": "GT", "role": "BOWL", "is_overseas": True}, "Mitchell Santner": {"team": "CSK", "role": "BOWL", "is_overseas": True},
-        "Kartik Sharma": {"team": "IPL", "role": "BAT", "is_overseas": False},
-        # NAGLE
+        "Tushar Deshpande": {"team": "RR", "role": "BOWL", "is_overseas": False}, "Travis Head": {"team": "SRH", "role": "BAT", "is_overseas": True},
+        "Ishan Kishan": {"team": "SRH", "role": "WK", "is_overseas": False}, "Riyan Parag": {"team": "RR", "role": "BAT", "is_overseas": False},
+        "Shreyas Iyer": {"team": "PBKS", "role": "BAT", "is_overseas": False}, "Ayush Badoni": {"team": "LSG", "role": "BAT", "is_overseas": False},
+        "Himmat Singh": {"team": "IPL", "role": "BAT", "is_overseas": False}, "Manish Pandey": {"team": "KKR", "role": "BAT", "is_overseas": False},
+        "Ajinkya Rahane": {"team": "CSK", "role": "BAT", "is_overseas": False}, "Sai Sudharsan": {"team": "GT", "role": "BAT", "is_overseas": False},
+        "Prithvi Shaw": {"team": "DC", "role": "BAT", "is_overseas": False}, "Karun Nair": {"team": "IPL", "role": "BAT", "is_overseas": False},
+        "Abishek Porel": {"team": "DC", "role": "WK", "is_overseas": False}, "Sarfaraz Khan": {"team": "DC", "role": "BAT", "is_overseas": False},
+        "Ruturaj Gaikwad": {"team": "CSK", "role": "BAT", "is_overseas": False}, "Ramakrishna Ghosh": {"team": "IPL", "role": "BOWL", "is_overseas": False},
+        "Mitchell Marsh": {"team": "DC", "role": "BAT", "is_overseas": True}, "Krunal Pandya": {"team": "RCB", "role": "BOWL", "is_overseas": False},
+        "Venkatesh Iyer": {"team": "KKR", "role": "BAT", "is_overseas": False}, "Jaydev Unadkat": {"team": "SRH", "role": "BOWL", "is_overseas": False},
+        "Suyash Sharma": {"team": "KKR", "role": "BOWL", "is_overseas": False}, "Sandeep Sharma": {"team": "RR", "role": "BOWL", "is_overseas": False},
+        "Arshdeep Singh": {"team": "PBKS", "role": "BOWL", "is_overseas": False}, "Trent Boult": {"team": "MI", "role": "BOWL", "is_overseas": True},
+        "Mohammed Shami": {"team": "SRH", "role": "BOWL", "is_overseas": False}, "Kagiso Rabada": {"team": "GT", "role": "BOWL", "is_overseas": True},
+        "Mitchell Santner": {"team": "CSK", "role": "BOWL", "is_overseas": True}, "Kartik Sharma": {"team": "IPL", "role": "BAT", "is_overseas": False},
         "Heinrich Klaasen": {"team": "SRH", "role": "WK", "is_overseas": True}, "Virat Kohli": {"team": "RCB", "role": "BAT", "is_overseas": False},
         "Suryakumar Yadav": {"team": "MI", "role": "BAT", "is_overseas": False}, "Rinku Singh": {"team": "KKR", "role": "BAT", "is_overseas": False},
         "KL Rahul": {"team": "DC", "role": "WK", "is_overseas": False}, "Sanju Samson": {"team": "RR", "role": "WK", "is_overseas": False},
@@ -121,9 +114,12 @@ def save_db(data):
 # --- 3. UI SETUP ---
 st.set_page_config(page_title="Inner Circle IPL", layout="wide")
 st.markdown("""<style>
-    .score-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
-    .calc-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
-    .badge { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; color: white; }
+    .mobile-matrix { border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; height: 52px; }
+    .jersey-dot { height: 10px; width: 10px; border-radius: 50%; margin-right: 8px; }
+    .role-label { font-size: 10px; color: #64748b; font-weight: 700; }
+    .squad-view-box { background: #f1f5f9; border-radius: 10px; padding: 10px; border: 1px solid #cbd5e1; }
+    .squad-player-row { font-size: 12px; padding: 4px 0; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; }
+    .cap-badge { background: #1e293b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
 </style>""", unsafe_allow_html=True)
 
 db = load_db()
@@ -131,8 +127,6 @@ db = load_db()
 # --- 4. SIDEBAR (TEAM COUNTS) ---
 st.sidebar.title("🗓️ Season Schedule")
 active_week = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()))
-
-# Calculate team appearances in active week
 matches_this_week = SEASON_WEEKS[active_week]
 all_teams_this_week = []
 for fixture in matches_this_week.values():
@@ -151,18 +145,83 @@ for mid, fixture in matches_this_week.items():
 # --- 5. MAIN TABS ---
 t1, t_view, t2, t_admin = st.tabs(["🏏 MY SQUAD", "👀 ALL SQUADS", "📊 STANDINGS", "🛡️ ADMIN"])
 
-# ... (SQUAD SELECTION & ALL SQUADS TABS REMAIN SAME AS PREVIOUS VERSION)
-# [SQUAD SELECTION LOGIC REMOVED FOR BREVITY - USE PREVIOUS CODE BLOCK]
-
-# --- TAB 1: SQUAD SELECTION (Snippet) ---
+# --- TAB 1: SQUAD SELECTION (FIXED LOGIC) ---
 with t1:
     user = st.selectbox("Manager Name", list(db["pools"].keys()))
-    # Same selection logic as before...
-    st.info("Ensure you select 11 players including 1 WK and Max 4 Overseas.")
+    pool = db["pools"].get(user, [])
+    saved = db["selections"].get(active_week, {}).get(user, {"squad": [], "cap": ""})
+    
+    state_key = f"sel_{user}_{active_week}"
+    if state_key not in st.session_state:
+        st.session_state[state_key] = list(saved["squad"])
 
-# --- TAB: STANDINGS (UPDATED TO CALC POINTS) ---
+    f1, f2 = st.columns([2, 1])
+    search = f1.text_input("🔍 Search Name", placeholder="Type name...", label_visibility="collapsed")
+    role_f = f2.selectbox("Role", ["All", "BAT", "BOWL", "WK"], label_visibility="collapsed")
+
+    cols = st.columns(2)
+    display_idx = 0
+    for p in sorted(pool):
+        info = db["player_master"].get(p, {"team": "IPL", "role": "BAT", "is_overseas": False})
+        if (search.lower() in p.lower()) and (role_f == "All" or info["role"] == role_f):
+            with cols[display_idx % 2]:
+                c_cell, c_box = st.columns([4, 1])
+                with c_cell:
+                    st.markdown(f'''<div class="mobile-matrix">
+                        <span class="jersey-dot" style="background:{TEAM_COLORS.get(info['team'], '#ccc')}"></span>
+                        <div style="flex-grow:1; line-height:1.1;">
+                            <span style="font-size:11px; font-weight:600;">{p} {"✈️" if info['is_overseas'] else ""}</span><br>
+                            <span class="role-label">{ROLE_EMOJI.get(info['role'], 'BAT')}</span>
+                        </div>
+                    </div>''', unsafe_allow_html=True)
+                with c_box:
+                    is_sel = p in st.session_state[state_key]
+                    val = st.checkbox("", key=f"cb_{user}_{active_week}_{p}", value=is_sel)
+                    if val and p not in st.session_state[state_key]:
+                        st.session_state[state_key].append(p)
+                        st.rerun()
+                    elif not val and p in st.session_state[state_key]:
+                        st.session_state[state_key].remove(p)
+                        st.rerun()
+            display_idx += 1
+
+    st.divider()
+    final_squad = st.session_state[state_key]
+    os_count = sum(1 for p in final_squad if db["player_master"].get(p, {}).get("is_overseas"))
+    wk_count = sum(1 for p in final_squad if db["player_master"].get(p, {}).get("role") == "WK")
+    
+    st.write(f"**Squad:** {len(final_squad)}/11 | **Overseas:** {os_count}/4 | **Keepers:** {wk_count}")
+
+    if len(final_squad) == 11 and os_count <= 4 and wk_count >= 1:
+        default_cap = final_squad.index(saved["cap"]) if saved["cap"] in final_squad else 0
+        cap = st.selectbox("🛡️ Select Captain", final_squad, index=default_cap)
+        if st.button("🚀 SAVE SQUAD", type="primary", use_container_width=True):
+            if active_week not in db["selections"]: db["selections"][active_week] = {}
+            db["selections"][active_week][user] = {"squad": final_squad, "cap": cap}
+            save_db(db)
+            st.success(f"Squad Locked!")
+    else:
+        st.warning("⚠️ Rules: Exactly 11 Players, Max 4 Overseas, Min 1 Keeper.")
+
+# --- TAB: ALL SQUADS VIEW ---
+with t_view:
+    manager_list = list(db["pools"].keys())
+    cols = st.columns(len(manager_list))
+    for i, mgr in enumerate(manager_list):
+        with cols[i]:
+            st.markdown(f"#### {mgr}")
+            s_data = db["selections"].get(active_week, {}).get(mgr, None)
+            if not s_data: st.error("No Squad")
+            else:
+                st.markdown('<div class="squad-view-box">', unsafe_allow_html=True)
+                for player in sorted(s_data["squad"]):
+                    p_info = db["player_master"].get(player, {"team": "IPL", "role": "BAT", "is_overseas": False})
+                    cap_tag = '<span class="cap-badge">C</span>' if player == s_data["cap"] else ""
+                    st.markdown(f'<div class="squad-player-row"><span>{ROLE_EMOJI.get(p_info["role"], "")} {player}</span>{cap_tag}</div>', unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+
+# --- TAB: STANDINGS ---
 with t2:
-    st.subheader("📊 Leaderboard")
     lb_data = []
     for m in db["pools"].keys():
         total_pts, week_pts = 0, 0
@@ -174,54 +233,37 @@ with t2:
                     s = db["scores"].get(p, {}).get(mid, {"r":0, "w":0, "c":0, "s":0})
                     p_match_pts = (s.get("r",0)*1) + (s.get("w",0)*20) + (s.get("c",0)*5) + (s.get("s",0)*5)
                     p_weekly_pts += p_match_pts
-                
-                # Double for captain
                 if p == sel["cap"]: p_weekly_pts *= 2
                 total_pts += p_weekly_pts
                 if wk == active_week: week_pts += p_weekly_pts
         lb_data.append({"Manager": m, "Weekly": week_pts, "Total": total_pts})
-    
-    cols = st.columns(2)
-    for i, row in enumerate(sorted(lb_data, key=lambda x: x['Total'], reverse=True)):
-        with cols[i % 2]:
-            st.metric(row["Manager"], f"{row['Total']} pts", f"{row['Weekly']} this week")
+    for row in sorted(lb_data, key=lambda x: x['Total'], reverse=True):
+        st.metric(row["Manager"], f"{row['Total']} pts", f"{row['Weekly']} this week")
 
-# --- TAB: ADMIN (NEW CALCULATOR LOGIC) ---
+# --- TAB: ADMIN ---
 with t_admin:
-    st.subheader("📝 Match Stats Entry")
-    
-    # 1. Select Match
     match_opts = {f"{mid}: {txt}": mid for mid, txt in matches_this_week.items()}
     sel_display = st.selectbox("Select Match to Score", list(match_opts.keys()))
     sel_mid = match_opts[sel_display]
     
-    # 2. Get ONLY players submitted in squads for this specific week
     all_submitted = set()
     for mgr_data in db["selections"].get(active_week, {}).values():
         all_submitted.update(mgr_data["squad"])
     
-    teams_in_match = sel_display.split(": ")[1].split(" vs ")
-    eligible = [p for p in all_submitted if db["player_master"][p]["team"] in teams_in_match]
+    teams = sel_display.split(": ")[1].split(" vs ")
+    eligible = [p for p in all_submitted if db["player_master"][p]["team"] in teams]
     
-    if not eligible:
-        st.warning("No players from this match were selected in any manager's squad this week.")
+    if not eligible: st.warning("No submitted players in this match.")
     else:
-        st.write(f"Showing {len(eligible)} submitted players in this match:")
         for p in sorted(eligible):
             with st.container():
-                st.markdown(f"**{p}** ({db['player_master'][p]['team']})")
+                st.write(f"**{p}** ({db['player_master'][p]['team']})")
                 cur = db["scores"].get(p, {}).get(sel_mid, {"r":0, "w":0, "c":0, "s":0})
-                
                 c1, c2, c3, c4 = st.columns(4)
                 r = c1.number_input("Runs", 0, 200, int(cur["r"]), key=f"r_{sel_mid}_{p}")
                 w = c2.number_input("Wkts", 0, 10, int(cur["w"]), key=f"w_{sel_mid}_{p}")
                 c = c3.number_input("Cat/RO", 0, 10, int(cur["c"]), key=f"c_{sel_mid}_{p}")
                 s = c4.number_input("Stump", 0, 10, int(cur["s"]), key=f"s_{sel_mid}_{p}")
-                
-                calc_total = (r*1) + (w*20) + (c*5) + (s*5)
-                st.caption(f"Calculated Points for match: **{calc_total}**")
-                
-                # Save if changed
                 new_data = {"r": r, "w": w, "c": c, "s": s}
                 if new_data != cur:
                     if p not in db["scores"]: db["scores"][p] = {}
@@ -229,6 +271,6 @@ with t_admin:
                     save_db(db)
             st.divider()
 
-    if st.button("🔥 SYSTEM RESET (DANGER)"):
+    if st.button("RESET ALL DATA"):
         if os.path.exists(DB_FILE): os.remove(DB_FILE)
         st.rerun()
