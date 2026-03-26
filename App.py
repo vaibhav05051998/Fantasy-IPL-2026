@@ -1,5 +1,5 @@
-# VERSION: ver01_260326_ULTRA_V7
-# STATUS: V5 UI + Carryover + 7PM Sat Lock + Selective Admin Safety (Reset Only)
+# VERSION: ver01_260326_ULTRA_V8
+# STATUS: V1 Calendar + V5 UI + Carryover + 7PM Sat Lock + Selective Admin Safety
 
 import streamlit as st
 import pandas as pd
@@ -17,16 +17,16 @@ TEAM_COLORS = {
 }
 ROLE_EMOJI = {'BAT': '🏏', 'BOWL': '⚾', 'WK': '🧤'}
 
-# VERIFIED 2026 SCHEDULE (Sat-Fri Windows)
+# FALLBACK TO V1 SCHEDULE
 SEASON_WEEKS = {
-    "Week 1 (Mar 28 - Apr 03)": {"lock": "2026-03-28 19:00:00", "matches": {"M01": "RCB vs SRH", "M02": "MI vs KKR", "M03": "RR vs CSK", "M04": "PBKS vs GT", "M05": "LSG vs DC", "M06": "KKR vs SRH", "M07": "CSK vs PBKS", "M08": "RR vs MI", "M09": "GT vs DC"}},
-    "Week 2 (Apr 04 - Apr 10)": {"lock": "2026-04-04 19:00:00", "matches": {"M10": "SRH vs LSG", "M11": "RCB vs CSK", "M12": "KKR vs PBKS", "M13": "DC vs MI", "M14": "GT vs RR", "M15": "LSG vs RCB", "M16": "CSK vs KKR", "M17": "MI vs SRH"}},
-    "Week 3 (Apr 11 - Apr 17)": {"lock": "2026-04-11 19:00:00", "matches": {"M18": "PBKS vs RR", "M19": "DC vs GT", "M20": "SRH vs KKR", "M21": "RCB vs MI", "M22": "CSK vs LSG", "M23": "GT vs PBKS", "M24": "RR vs DC", "M25": "KKR vs RCB"}},
-    "Week 4 (Apr 18 - Apr 24)": {"lock": "2026-04-18 19:00:00", "matches": {"M26": "MI vs CSK", "M27": "LSG vs SRH", "M28": "PBKS vs DC", "M29": "GT vs KKR", "M30": "RCB vs RR", "M31": "CSK vs MI", "M32": "SRH vs GT", "M33": "KKR vs LSG"}},
-    "Week 5 (Apr 25 - May 01)": {"lock": "2026-04-25 19:00:00", "matches": {"M34": "DC vs PBKS", "M35": "RR vs SRH", "M36": "MI vs RCB", "M37": "LSG vs GT", "M38": "KKR vs CSK", "M39": "PBKS vs MI", "M40": "GT vs RCB", "M41": "SRH vs DC"}},
-    "Week 6 (May 02 - May 08)": {"lock": "2026-05-02 19:00:00", "matches": {"M42": "RR vs KKR", "M43": "CSK vs PBKS", "M44": "MI vs LSG", "M45": "DC vs SRH", "M46": "RCB vs GT", "M47": "KKR vs RR", "M48": "PBKS vs CSK", "M49": "LSG vs MI"}},
-    "Week 7 (May 09 - May 15)": {"lock": "2026-05-09 19:00:00", "matches": {"M50": "SRH vs RCB", "M51": "GT vs DC", "M52": "RR vs PBKS", "M53": "KKR vs MI", "M54": "CSK vs LSG", "M55": "RCB vs SRH", "M56": "DC vs GT", "M57": "PBKS vs RR"}},
-    "Week 8 (May 16 - May 22)": {"lock": "2026-05-16 19:00:00", "matches": {"M58": "MI vs KKR", "M59": "LSG vs CSK", "M60": "SRH vs RR", "M61": "DC vs RCB", "M62": "GT vs PBKS", "M63": "KKR vs LSG", "M64": "CSK vs SRH", "M65": "MI vs DC", "M66": "RR vs GT", "M67": "PBKS vs RCB", "M68": "LSG vs KKR", "M69": "SRH vs MI", "M70": "CSK vs RR"}},
+    "Week 1 (Mar 28 - Apr 03)": {"lock": "2026-03-28 19:00:00", "matches": {"M01": "RCB vs SRH", "M02": "MI vs KKR", "M03": "RR vs CSK", "M04": "PBKS vs GT", "M05": "LSG vs DC", "M06": "KKR vs SRH", "M07": "CSK vs PBKS"}},
+    "Week 2 (Apr 04 - Apr 10)": {"lock": "2026-04-04 19:00:00", "matches": {"M08": "DC vs MI", "M09": "GT vs RR", "M10": "SRH vs LSG", "M11": "RCB vs CSK", "M12": "KKR vs PBKS", "M13": "RR vs MI", "M14": "DC vs GT"}},
+    "Week 3 (Apr 11 - Apr 17)": {"lock": "2026-04-11 19:00:00", "matches": {"M15": "SRH vs RCB", "M16": "KKR vs MI", "M17": "CSK vs RR", "M18": "GT vs PBKS", "M19": "DC vs LSG", "M20": "SRH vs KKR", "M21": "PBKS vs CSK"}},
+    "Week 4 (Apr 18 - Apr 24)": {"lock": "2026-04-18 19:00:00", "matches": {"M22": "MI vs DC", "M23": "RR vs GT", "M24": "LSG vs SRH", "M25": "CSK vs RCB", "M26": "PBKS vs KKR", "M27": "MI vs RR", "M28": "GT vs DC"}},
+    "Week 5 (Apr 25 - May 01)": {"lock": "2026-04-25 19:00:00", "matches": {"M29": "LSG vs KKR", "M30": "RCB vs GT", "M31": "SRH vs RR", "M32": "DC vs CSK", "M33": "MI vs PBKS", "M34": "KKR vs RCB", "M35": "RR vs LSG"}},
+    "Week 6 (May 02 - May 08)": {"lock": "2026-05-02 19:00:00", "matches": {"M36": "GT vs SRH", "M37": "CSK vs MI", "M38": "PBKS vs DC", "M39": "RCB vs LSG", "M40": "RR vs KKR", "M41": "SRH vs PBKS", "M42": "GT vs CSK"}},
+    "Week 7 (May 09 - May 15)": {"lock": "2026-05-09 19:00:00", "matches": {"M43": "DC vs RCB", "M44": "LSG vs MI", "M45": "KKR vs GT", "M46": "CSK vs SRH", "M47": "PBKS vs RR", "M48": "MI vs LSG", "M49": "RCB vs DC"}},
+    "Week 8 (May 16 - May 22)": {"lock": "2026-05-16 19:00:00", "matches": {"M50": "GT vs KKR", "M51": "SRH vs CSK", "M52": "RR vs PBKS", "M53": "DC vs RR", "M54": "KKR vs PBKS", "M55": "LSG vs GT", "M56": "MI vs RCB"}},
 }
 
 def load_db():
@@ -106,7 +106,6 @@ def save_db(data):
 
 st.set_page_config(page_title="Inner Circle IPL", layout="wide")
 
-# V3/V5 CSS STYLING
 st.markdown("""<style>
     .mobile-matrix { border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; height: 52px; }
     .jersey-dot { height: 10px; width: 10px; border-radius: 50%; margin-right: 8px; }
@@ -118,7 +117,6 @@ st.markdown("""<style>
 
 db = load_db()
 
-# --- 2. SIDEBAR ---
 st.sidebar.title("🗓️ Season Schedule")
 active_week_name = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()))
 week_config = SEASON_WEEKS[active_week_name]
@@ -128,7 +126,6 @@ is_locked = datetime.now() > lock_time
 if is_locked: st.sidebar.error(f"🔒 Locked at {lock_time.strftime('%I:%M %p, %b %d')}")
 else: st.sidebar.success(f"🔓 Closes {lock_time.strftime('%I:%M %p, %b %d')}")
 
-# Match counts calculation
 matches_this_week = week_config["matches"]
 all_teams_week = []
 for f in matches_this_week.values(): all_teams_week.extend(f.split(" vs "))
@@ -137,20 +134,16 @@ for team, count in sorted(team_counts.items()): st.sidebar.markdown(f"**{team}**
 
 t1, t_view, t2, t_admin = st.tabs(["🏏 MY SQUAD", "👀 ALL SQUADS", "📊 STANDINGS", "🛡️ ADMIN"])
 
-# TAB 1: SQUAD SELECTION
 with t1:
     user = st.selectbox("Manager Name", list(db["pools"].keys()))
     pool = db["pools"].get(user, [])
     saved = db["selections"].get(active_week_name, {}).get(user, {"squad": [], "cap": ""})
     state_key = f"sel_{user}_{active_week_name}"
     if state_key not in st.session_state: st.session_state[state_key] = list(saved["squad"])
-    
-    if is_locked: st.warning("Submission period has ended. No further changes can be saved.")
-    
+    if is_locked: st.warning("Locked. No changes can be saved.")
     f1, f2 = st.columns([2, 1])
-    search = f1.text_input("🔍 Search Name", key="src_v7")
-    role_f = f2.selectbox("Role", ["All", "BAT", "BOWL", "WK"], key="rol_v7")
-    
+    search = f1.text_input("🔍 Search", key="src_v8")
+    role_f = f2.selectbox("Role", ["All", "BAT", "BOWL", "WK"], key="rol_v8")
     cols = st.columns(2)
     display_idx = 0
     for p in sorted(pool):
@@ -165,23 +158,17 @@ with t1:
                         if checked and p not in st.session_state[state_key]: st.session_state[state_key].append(p); st.rerun()
                         elif not checked and p in st.session_state[state_key]: st.session_state[state_key].remove(p); st.rerun()
             display_idx += 1
-            
-    st.divider()
     final_squad = st.session_state[state_key]
     os_count = sum(1 for p in final_squad if db["player_master"].get(p, {}).get("is_overseas"))
     wk_count = sum(1 for p in final_squad if db["player_master"].get(p, {}).get("role") == "WK")
-    st.write(f"**Squad:** {len(final_squad)}/11 | **Overseas:** {os_count}/4 | **Keepers:** {wk_count}")
-    
     if len(final_squad) == 11 and os_count <= 4 and wk_count >= 1:
         cap = st.selectbox("🛡️ Select Captain", final_squad, index=(final_squad.index(saved["cap"]) if saved["cap"] in final_squad else 0), disabled=is_locked)
-        if not is_locked:
-            if st.button("🚀 SAVE SQUAD", type="primary", use_container_width=True):
-                if active_week_name not in db["selections"]: db["selections"][active_week_name] = {}
-                db["selections"][active_week_name][user] = {"squad": final_squad, "cap": cap}
-                save_db(db); st.success("Squad Locked!")
+        if not is_locked and st.button("🚀 SAVE SQUAD", type="primary", use_container_width=True):
+            if active_week_name not in db["selections"]: db["selections"][active_week_name] = {}
+            db["selections"][active_week_name][user] = {"squad": final_squad, "cap": cap}
+            save_db(db); st.success("Saved!")
     else: st.warning("⚠️ Rules: Exactly 11 Players, Max 4 Overseas, Min 1 Keeper.")
 
-# TAB 2: STANDINGS (AUTO-CARRYOVER)
 with t2:
     lb_data = []
     week_keys = list(SEASON_WEEKS.keys())
@@ -208,22 +195,19 @@ with t2:
     st.subheader("📊 Leaderboard")
     st.table(pd.DataFrame(sorted(lb_data, key=lambda x: x['Total'], reverse=True)))
 
-# TAB 3: ALL SQUADS VIEW
 with t_view:
     cols = st.columns(len(db["pools"]))
     for i, mgr in enumerate(db["pools"].keys()):
         with cols[i]:
             st.markdown(f"#### {mgr}")
             s_data = db["selections"].get(active_week_name, {}).get(mgr, None)
-            if not s_data: st.error("No Selection")
-            else:
+            if s_data:
                 st.markdown('<div class="squad-view-box">', unsafe_allow_html=True)
                 for player in sorted(s_data["squad"]):
                     cap_tag = '<span class="cap-badge">C</span>' if player == s_data["cap"] else ""
                     st.markdown(f'<div class="squad-player-row"><span>{player}</span>{cap_tag}</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-# TAB 4: ADMIN (Instant Push Score, Safety on Reset)
 with t_admin:
     st.subheader("🛡️ Score Management")
     sel_mid = st.selectbox("Select Match", list(matches_this_week.keys()))
@@ -232,7 +216,6 @@ with t_admin:
     for wk in db["selections"].values():
         for m_sel in wk.values(): all_p.update(m_sel["squad"])
     eligible = [p for p in all_p if db["player_master"].get(p, {}).get("team") in teams]
-    
     for p in sorted(eligible):
         cur = db["scores"].get(p, {}).get(sel_mid, {"r":0, "w":0, "c":0, "s":0})
         cols = st.columns([2, 1, 1, 1, 1])
@@ -244,15 +227,12 @@ with t_admin:
         if {"r":r,"w":w,"c":c,"s":s} != cur:
             if p not in db["scores"]: db["scores"][p] = {}
             db["scores"][p][sel_mid] = {"r":r,"w":w,"c":c,"s":s}
-    
-    # Instant Push Score (V1 style)
     if st.button("🚀 PUSH SCORES", type="primary", use_container_width=True):
-        save_db(db); st.success("Scores saved successfully!")
+        save_db(db); st.success("Scores saved!")
 
     st.divider()
-    st.subheader("⚠️ Dangerous Actions")
-    reset_confirm = st.checkbox("Confirm Layer: I want to delete all selections and scores.")
-    if reset_confirm:
-        if st.button("💣 CLEAR ALL DATA", type="primary"):
-            if os.path.exists(DB_FILE): os.remove(DB_FILE)
-            st.rerun()
+    st.subheader("⚠️ Reset Action")
+    reset_confirm = st.checkbox("Confirm: Delete all selections and scores.")
+    if reset_confirm and st.button("💣 CLEAR ALL DATA", type="primary"):
+        if os.path.exists(DB_FILE): os.remove(DB_FILE)
+        st.rerun()
