@@ -3,7 +3,7 @@ import pandas as pd
 import json
 import os
 
-# --- 1. CONFIGURATION & SEASON CALENDAR ---
+# --- 1. CONFIGURATION & FULL SEASON CALENDAR ---
 TEAM_COLORS = {
     'RCB': '#d11d26', 'MI': '#004ba0', 'CSK': '#fdb913', 'SRH': '#f26522',
     'RR': '#ea1a85', 'KKR': '#3a225d', 'GT': '#1b2133', 'LSG': '#0057e2',
@@ -31,7 +31,7 @@ st.markdown("""
     .mobile-matrix { border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; height: 42px; }
     .jersey-dot { height: 8px; width: 8px; border-radius: 50%; margin-right: 5px; }
     .lb-card { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; text-align: center; margin-bottom: 10px; }
-    .total-pts { color: #e11d48; font-size: 1.4rem; font-weight: 800; display: block; }
+    .total-pts { color: #e11d48; font-size: 1.5rem; font-weight: 800; display: block; }
     .rule-box { background: #fffbeb; border: 1px solid #fcd34d; padding: 8px; border-radius: 6px; font-size: 12px; margin-bottom: 10px; }
 </style>
 """, unsafe_allow_html=True)
@@ -50,21 +50,20 @@ def save_db(data):
 
 db = load_db()
 
-# --- 4. NAVIGATION & SIDEBAR ---
-st.sidebar.title("🗓️ Season Logic")
-active_week = st.sidebar.selectbox("Active Week", list(SEASON_WEEKS.keys()))
-
+# --- 4. NAVIGATION ---
 st.title("🏆 Inner Circle IPL 2026")
+active_week = st.sidebar.selectbox("Active Week", list(SEASON_WEEKS.keys()))
 t1, t2, t3 = st.tabs(["🏏 SQUAD", "📊 STANDINGS", "🛡️ ADMIN"])
 
 # --- TAB 1: SQUAD SELECTION (MOBILE MATRIX) ---
 with t1:
     st.markdown('<div class="rule-box"><b>Rules:</b> 11 Players | Max 4 Overseas (✈️) | 1 Captain (2x Pts)</div>', unsafe_allow_html=True)
     
-    if not db["pools"]:
-        st.info("No manager pools found. Go to Admin to add players.")
+    managers = list(db["pools"].keys())
+    if not managers:
+        st.info("Setup pools in Admin first!")
     else:
-        user = st.selectbox("Select Manager", list(db["pools"].keys()))
+        user = st.selectbox("Select Manager", managers)
         pool = db["pools"].get(user, [])
         saved = db["selections"].get(active_week, {}).get(user, {"squad": [], "cap": ""})
         
@@ -79,7 +78,7 @@ with t1:
             with cols[idx % 2]:
                 c_info, c_check = st.columns([4, 1])
                 with c_info:
-                    st.markdown(f'<div class="mobile-matrix"><span class="jersey-dot" style="background:{color}"></span><span style="font-size:12px; overflow:hidden;">{p} {os_icon}</span></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="mobile-matrix"><span class="jersey-dot" style="background:{color}"></span><span style="font-size:12px;">{p} {os_icon}</span></div>', unsafe_allow_html=True)
                 with c_check:
                     if st.checkbox("", key=f"m_{user}_{p}", value=(p in saved["squad"]), label_visibility="collapsed"):
                         selected.append(p)
@@ -88,63 +87,63 @@ with t1:
         st.divider()
         if len(selected) > 0:
             st.write(f"**Picked:** {len(selected)}/11 | **Overseas:** {os_count}/4")
-            if len(selected) == 11:
-                if os_count <= 4:
-                    cap = st.selectbox("🛡️ Select Captain", selected, index=selected.index(saved["cap"]) if saved["cap"] in selected else 0)
-                    if st.button("🚀 SUBMIT SQUAD", type="primary", use_container_width=True):
-                        if active_week not in db["selections"]: db["selections"][active_week] = {}
-                        db["selections"][active_week][user] = {"squad": selected, "cap": cap}
-                        save_db(db)
-                        st.success("Squad Locked!")
-                else: st.error("Too many Overseas (Max 4)!")
-            else: st.warning(f"Pick {11-len(selected)} more players.")
+            if len(selected) == 11 and os_count <= 4:
+                cap = st.selectbox("🛡️ Select Captain", selected, index=selected.index(saved["cap"]) if saved["cap"] in selected else 0)
+                if st.button("🚀 SUBMIT SQUAD", type="primary", use_container_width=True):
+                    if active_week not in db["selections"]: db["selections"][active_week] = {}
+                    db["selections"][active_week][user] = {"squad": selected, "cap": cap}
+                    save_db(db)
+                    st.success("Squad Locked!")
+            elif os_count > 4: st.error("Too many Overseas (Max 4)!")
 
-# --- TAB 2: STANDINGS (REVERTED CARD LAYOUT) ---
+# --- TAB 2: STANDINGS (THE FIXED SECTION) ---
 with t2:
     st.subheader("📊 Leaderboard")
-    lb_data = []
     managers = list(db["pools"].keys())
-    if managers:
-        lb_cols = st.columns(2)
+    if not managers:
+        st.info("No managers registered yet.")
+    else:
+        lb_data = []
+        num_cols = min(len(managers), 2)
+        lb_cols = st.columns(num_cols)
+        
         for i, m in enumerate(managers):
-            w_pts, t_pts = 0, 0
+            t_pts, w_pts = 0, 0
             for wk, matches in SEASON_WEEKS.items():
                 sel = db["selections"].get(wk, {}).get(m, {"squad": [], "cap": ""})
                 week_total = 0
                 for p in sel["squad"]:
                     p_sc = db["scores"].get(p, {})
-                    match_pts = sum([v for k, v in p_sc.items() if k in matches])
-                    week_total += (match_pts * 2) if p == sel["cap"] else match_pts
+                    pts = sum([v for k, v in p_sc.items() if k in matches])
+                    week_total += (pts * 2) if p == sel["cap"] else pts
                 t_pts += week_total
                 if wk == active_week: w_pts = week_total
             
             lb_data.append({"Manager": m, "Weekly": w_pts, "Total": t_pts})
-            with lb_cols[i % 2]:
+            with lb_cols[i % num_cols]:
                 st.markdown(f'<div class="lb-card"><b>{m}</b><br><small>Week: {w_pts}</small><span class="total-pts">{t_pts}</span></div>', unsafe_allow_html=True)
         
         st.divider()
-        st.dataframe(pd.DataFrame(lb_data).sort_values("Total", ascending=False), use_container_width=True)
+        st.dataframe(pd.DataFrame(lb_data).sort_values("Total", ascending=False), use_container_width=True, hide_index=True)
 
 # --- TAB 3: ADMIN ---
 with t3:
     st.subheader("🛡️ Admin Panel")
     
-    # 1. SCORING SECTION
     st.write("### 🏏 Input Match Scores")
     match_list = {f"{mid}: {txt}": mid for wk in SEASON_WEEKS.values() for mid, txt in wk.items()}
     sel_display = st.selectbox("Select Match ID & Teams", list(match_list.keys()))
     sel_mid = match_list[sel_display]
     
-    # Filter players from the match teams
     match_teams = sel_display.split(": ")[1].split(" vs ")
     eligible = [p for p, info in db["player_master"].items() if info['team'] in match_teams]
     
-    if not eligible: st.info("No players from these teams found in the master list.")
+    if not eligible: st.info("No players found for these teams.")
     else:
         for p in sorted(eligible):
             with st.expander(f"Score: {p} ({db['player_master'][p]['team']})"):
                 cur = db["scores"].get(p, {}).get(sel_mid, 0)
-                score = st.number_input(f"Points for {p}", 0, value=int(cur), key=f"sc_{sel_mid}_{p}")
+                score = st.number_input(f"Pts", 0, value=int(cur), key=f"sc_{sel_mid}_{p}")
                 if st.button(f"Save {p}"):
                     if p not in db["scores"]: db["scores"][p] = {}
                     db["scores"][p][sel_mid] = score
@@ -152,20 +151,15 @@ with t3:
                     st.toast(f"Saved {p}!")
 
     st.divider()
-    
-    # 2. NUCLEAR CLEAR BUTTON (TRIPLE PROTECTION)
-    st.write("### ⚠️ Danger Zone")
-    with st.expander("Reset Tournament Scores & Squads"):
-        st.warning("This will delete all weekly selections and scores. Manager pools will be kept.")
+    with st.expander("⚠️ Reset Tournament Data"):
+        st.warning("Deletes scores and squad picks. Pools stay.")
         confirm_text = st.text_input("Type 'DELETE' to verify")
-        safety_check = st.checkbox("I confirm I want to wipe tournament data.")
+        safety_check = st.checkbox("Confirm wipe")
         
         if st.button("🔥 CLEAR ALL DATA"):
             if confirm_text == "DELETE" and safety_check:
-                db["selections"] = {}
-                db["scores"] = {}
+                db["selections"], db["scores"] = {}, {}
                 save_db(db)
-                st.error("All data wiped! Refreshing...")
+                st.error("Data Wiped!")
                 st.rerun()
-            else:
-                st.warning("Complete safety checks to enable button.")
+        
