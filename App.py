@@ -1,3 +1,5 @@
+# STATUS: Stable + Live Rank Delta + Weekly Top Performers
+
 import streamlit as st
 import pandas as pd
 import json
@@ -25,7 +27,6 @@ SEASON_WEEKS = {
     "Playoffs (May 23 - May 30)": {"SF1": "Qualifier 1", "SF2": "Eliminator", "SF3": "Qualifier 2", "FIN": "Grand Final"}
 }
 
-# --- 2. DATABASE ENGINE ---
 def load_db():
     pm = {
         "Rajat Patidar": {"team": "RCB", "role": "BAT", "is_overseas": False}, "Devdutt Padikkal": {"team": "LSG", "role": "BAT", "is_overseas": False},
@@ -94,24 +95,19 @@ def load_db():
         "Varun Chakaravarthy": {"team": "KKR", "role": "BOWL", "is_overseas": False}, "Lungi Ngidi": {"team": "DC", "role": "BOWL", "is_overseas": True},
         "Jason Holder": {"team": "IPL", "role": "BOWL", "is_overseas": True}, "Mitchell Starc": {"team": "DC", "role": "BOWL", "is_overseas": True}
     }
-
     initial_pools = {
         "Kazim": list(pm.keys())[:30], "Aman": list(pm.keys())[30:52], 
         "Aatish": list(pm.keys())[52:87], "Shrijeet": list(pm.keys())[87:114], 
         "Nagle": list(pm.keys())[114:]
     }
-
     if not os.path.exists(DB_FILE):
         return {"selections": {}, "scores": {}, "pools": initial_pools, "player_master": pm}
-    
-    with open(DB_FILE, 'r') as f:
-        data = json.load(f)
+    with open(DB_FILE, 'r') as f: data = json.load(f)
     return data
 
 def save_db(data):
     with open(DB_FILE, 'w') as f: json.dump(data, f)
 
-# --- 3. UI SETUP ---
 st.set_page_config(page_title="Inner Circle IPL", layout="wide")
 st.markdown("""<style>
     .mobile-matrix { border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; height: 52px; }
@@ -124,7 +120,6 @@ st.markdown("""<style>
 
 db = load_db()
 
-# --- 4. SIDEBAR (TEAM COUNTS) ---
 st.sidebar.title("🗓️ Season Schedule")
 active_week = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()))
 matches_this_week = SEASON_WEEKS[active_week]
@@ -142,23 +137,17 @@ st.sidebar.divider()
 for mid, fixture in matches_this_week.items():
     st.sidebar.info(f"**{mid}:** {fixture}")
 
-# --- 5. MAIN TABS ---
 t1, t_view, t2, t_admin = st.tabs(["🏏 MY SQUAD", "👀 ALL SQUADS", "📊 STANDINGS", "🛡️ ADMIN"])
 
-# --- TAB 1: SQUAD SELECTION (FIXED LOGIC) ---
 with t1:
     user = st.selectbox("Manager Name", list(db["pools"].keys()))
     pool = db["pools"].get(user, [])
     saved = db["selections"].get(active_week, {}).get(user, {"squad": [], "cap": ""})
-    
     state_key = f"sel_{user}_{active_week}"
-    if state_key not in st.session_state:
-        st.session_state[state_key] = list(saved["squad"])
-
+    if state_key not in st.session_state: st.session_state[state_key] = list(saved["squad"])
     f1, f2 = st.columns([2, 1])
-    search = f1.text_input("🔍 Search Name", placeholder="Type name...", label_visibility="collapsed")
-    role_f = f2.selectbox("Role", ["All", "BAT", "BOWL", "WK"], label_visibility="collapsed")
-
+    search = f1.text_input("🔍 Search Name", placeholder="Type name...", key="src_1")
+    role_f = f2.selectbox("Role", ["All", "BAT", "BOWL", "WK"], key="rol_1")
     cols = st.columns(2)
     display_idx = 0
     for p in sorted(pool):
@@ -166,44 +155,27 @@ with t1:
         if (search.lower() in p.lower()) and (role_f == "All" or info["role"] == role_f):
             with cols[display_idx % 2]:
                 c_cell, c_box = st.columns([4, 1])
-                with c_cell:
-                    st.markdown(f'''<div class="mobile-matrix">
-                        <span class="jersey-dot" style="background:{TEAM_COLORS.get(info['team'], '#ccc')}"></span>
-                        <div style="flex-grow:1; line-height:1.1;">
-                            <span style="font-size:11px; font-weight:600;">{p} {"✈️" if info['is_overseas'] else ""}</span><br>
-                            <span class="role-label">{ROLE_EMOJI.get(info['role'], 'BAT')}</span>
-                        </div>
-                    </div>''', unsafe_allow_html=True)
+                with c_cell: st.markdown(f'<div class="mobile-matrix"><span class="jersey-dot" style="background:{TEAM_COLORS.get(info["team"], "#ccc")}"></span><div style="flex-grow:1; line-height:1.1;"><span style="font-size:11px; font-weight:600;">{p} {"✈️" if info["is_overseas"] else ""}</span><br><span class="role-label">{ROLE_EMOJI.get(info["role"], "BAT")}</span></div></div>', unsafe_allow_html=True)
                 with c_box:
                     is_sel = p in st.session_state[state_key]
-                    val = st.checkbox("", key=f"cb_{user}_{active_week}_{p}", value=is_sel)
-                    if val and p not in st.session_state[state_key]:
-                        st.session_state[state_key].append(p)
-                        st.rerun()
-                    elif not val and p in st.session_state[state_key]:
-                        st.session_state[state_key].remove(p)
-                        st.rerun()
+                    if st.checkbox("", key=f"cb_{user}_{active_week}_{p}", value=is_sel):
+                        if p not in st.session_state[state_key]: st.session_state[state_key].append(p); st.rerun()
+                    elif p in st.session_state[state_key]: st.session_state[state_key].remove(p); st.rerun()
             display_idx += 1
-
     st.divider()
     final_squad = st.session_state[state_key]
     os_count = sum(1 for p in final_squad if db["player_master"].get(p, {}).get("is_overseas"))
     wk_count = sum(1 for p in final_squad if db["player_master"].get(p, {}).get("role") == "WK")
-    
     st.write(f"**Squad:** {len(final_squad)}/11 | **Overseas:** {os_count}/4 | **Keepers:** {wk_count}")
-
     if len(final_squad) == 11 and os_count <= 4 and wk_count >= 1:
         default_cap = final_squad.index(saved["cap"]) if saved["cap"] in final_squad else 0
         cap = st.selectbox("🛡️ Select Captain", final_squad, index=default_cap)
         if st.button("🚀 SAVE SQUAD", type="primary", use_container_width=True):
             if active_week not in db["selections"]: db["selections"][active_week] = {}
             db["selections"][active_week][user] = {"squad": final_squad, "cap": cap}
-            save_db(db)
-            st.success(f"Squad Locked!")
-    else:
-        st.warning("⚠️ Rules: Exactly 11 Players, Max 4 Overseas, Min 1 Keeper.")
+            save_db(db); st.success(f"Squad Locked!")
+    else: st.warning("⚠️ Rules: Exactly 11 Players, Max 4 Overseas, Min 1 Keeper.")
 
-# --- TAB: ALL SQUADS VIEW ---
 with t_view:
     manager_list = list(db["pools"].keys())
     cols = st.columns(len(manager_list))
@@ -220,39 +192,62 @@ with t_view:
                     st.markdown(f'<div class="squad-player-row"><span>{ROLE_EMOJI.get(p_info["role"], "")} {player}</span>{cap_tag}</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- TAB: STANDINGS ---
 with t2:
     lb_data = []
+    player_weekly_pts = Counter()
+    week_keys = list(SEASON_WEEKS.keys())
+    cur_idx = week_keys.index(active_week)
+    
     for m in db["pools"].keys():
-        total_pts, week_pts = 0, 0
-        for wk, matches in SEASON_WEEKS.items():
+        total, week, prev = 0, 0, 0
+        for idx, (wk, matches) in enumerate(SEASON_WEEKS.items()):
             sel = db["selections"].get(wk, {}).get(m, {"squad": [], "cap": ""})
+            w_pts = 0
             for p in sel["squad"]:
-                p_weekly_pts = 0
+                p_pts = 0
                 for mid in matches:
                     s = db["scores"].get(p, {}).get(mid, {"r":0, "w":0, "c":0, "s":0})
-                    p_match_pts = (s.get("r",0)*1) + (s.get("w",0)*20) + (s.get("c",0)*5) + (s.get("s",0)*5)
-                    p_weekly_pts += p_match_pts
-                if p == sel["cap"]: p_weekly_pts *= 2
-                total_pts += p_weekly_pts
-                if wk == active_week: week_pts += p_weekly_pts
-        lb_data.append({"Manager": m, "Weekly": week_pts, "Total": total_pts})
-    for row in sorted(lb_data, key=lambda x: x['Total'], reverse=True):
-        st.metric(row["Manager"], f"{row['Total']} pts", f"{row['Weekly']} this week")
+                    match_pts = (s.get("r",0)*1) + (s.get("w",0)*20) + (s.get("c",0)*5) + (s.get("s",0)*5)
+                    p_pts += match_pts
+                    if wk == active_week: player_weekly_pts[p] += match_pts
+                if p == sel["cap"]: p_pts *= 2
+                w_pts += p_pts
+            total += w_pts
+            if wk == active_week: week = w_pts
+            if idx < cur_idx: prev += w_pts
+        lb_data.append({"Manager": m, "Weekly": week, "Total": total, "PrevTotal": prev})
 
-# --- TAB: ADMIN ---
+    curr_rank = sorted(lb_data, key=lambda x: x['Total'], reverse=True)
+    prev_rank = sorted(lb_data, key=lambda x: x['PrevTotal'], reverse=True)
+    
+    st.subheader("📊 Leaderboard")
+    cols = st.columns(2)
+    for i, row in enumerate(curr_rank):
+        c_pos = i + 1
+        p_pos = next(idx for idx, d in enumerate(prev_rank) if d['Manager'] == row['Manager']) + 1
+        d_lbl, d_clr = ("No Change", "off")
+        if c_pos < p_pos: d_lbl, d_clr = (f"↑ Up {p_pos-c_pos}", "normal")
+        elif c_pos > p_pos: d_lbl, d_clr = (f"↓ Down {c_pos-p_pos}", "inverse")
+        with cols[i % 2]:
+            st.metric(f"#{c_pos} {row['Manager']}", f"{row['Total']} pts", f"{row['Weekly']} ({d_lbl})", delta_color=d_clr)
+    
+    st.divider()
+    st.subheader("🔥 Top Performers (This Week)")
+    if player_weekly_pts:
+        top_players = player_weekly_pts.most_common(5)
+        cols_p = st.columns(len(top_players))
+        for i, (p_name, p_val) in enumerate(top_players):
+            with cols_p[i]: st.info(f"**{p_name}**\n\n{p_val} pts")
+    else: st.write("No matches scored yet.")
+
 with t_admin:
     match_opts = {f"{mid}: {txt}": mid for mid, txt in matches_this_week.items()}
     sel_display = st.selectbox("Select Match to Score", list(match_opts.keys()))
     sel_mid = match_opts[sel_display]
-    
     all_submitted = set()
-    for mgr_data in db["selections"].get(active_week, {}).values():
-        all_submitted.update(mgr_data["squad"])
-    
+    for mgr_data in db["selections"].get(active_week, {}).values(): all_submitted.update(mgr_data["squad"])
     teams = sel_display.split(": ")[1].split(" vs ")
     eligible = [p for p in all_submitted if db["player_master"][p]["team"] in teams]
-    
     if not eligible: st.warning("No submitted players in this match.")
     else:
         for p in sorted(eligible):
@@ -264,13 +259,10 @@ with t_admin:
                 w = c2.number_input("Wkts", 0, 10, int(cur["w"]), key=f"w_{sel_mid}_{p}")
                 c = c3.number_input("Cat/RO", 0, 10, int(cur["c"]), key=f"c_{sel_mid}_{p}")
                 s = c4.number_input("Stump", 0, 10, int(cur["s"]), key=f"s_{sel_mid}_{p}")
-                new_data = {"r": r, "w": w, "c": c, "s": s}
-                if new_data != cur:
+                if {"r":r,"w":w,"c":c,"s":s} != cur:
                     if p not in db["scores"]: db["scores"][p] = {}
-                    db["scores"][p][sel_mid] = new_data
-                    save_db(db)
+                    db["scores"][p][sel_mid] = {"r":r,"w":w,"c":c,"s":s}; save_db(db)
             st.divider()
-
     if st.button("RESET ALL DATA"):
         if os.path.exists(DB_FILE): os.remove(DB_FILE)
         st.rerun()
