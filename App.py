@@ -1,5 +1,5 @@
-# VERSION: ver01_260326_ULTRA_V6
-# STATUS: 2-Layer Admin Safety + Verified 2026 Schedule + V3 UI
+# VERSION: ver01_260326_ULTRA_V7
+# STATUS: V5 UI + Carryover + 7PM Sat Lock + Selective Admin Safety (Reset Only)
 
 import streamlit as st
 import pandas as pd
@@ -106,6 +106,7 @@ def save_db(data):
 
 st.set_page_config(page_title="Inner Circle IPL", layout="wide")
 
+# V3/V5 CSS STYLING
 st.markdown("""<style>
     .mobile-matrix { border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; height: 52px; }
     .jersey-dot { height: 10px; width: 10px; border-radius: 50%; margin-right: 8px; }
@@ -117,6 +118,7 @@ st.markdown("""<style>
 
 db = load_db()
 
+# --- 2. SIDEBAR ---
 st.sidebar.title("🗓️ Season Schedule")
 active_week_name = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()))
 week_config = SEASON_WEEKS[active_week_name]
@@ -126,6 +128,7 @@ is_locked = datetime.now() > lock_time
 if is_locked: st.sidebar.error(f"🔒 Locked at {lock_time.strftime('%I:%M %p, %b %d')}")
 else: st.sidebar.success(f"🔓 Closes {lock_time.strftime('%I:%M %p, %b %d')}")
 
+# Match counts calculation
 matches_this_week = week_config["matches"]
 all_teams_week = []
 for f in matches_this_week.values(): all_teams_week.extend(f.split(" vs "))
@@ -134,16 +137,20 @@ for team, count in sorted(team_counts.items()): st.sidebar.markdown(f"**{team}**
 
 t1, t_view, t2, t_admin = st.tabs(["🏏 MY SQUAD", "👀 ALL SQUADS", "📊 STANDINGS", "🛡️ ADMIN"])
 
+# TAB 1: SQUAD SELECTION
 with t1:
     user = st.selectbox("Manager Name", list(db["pools"].keys()))
     pool = db["pools"].get(user, [])
     saved = db["selections"].get(active_week_name, {}).get(user, {"squad": [], "cap": ""})
     state_key = f"sel_{user}_{active_week_name}"
     if state_key not in st.session_state: st.session_state[state_key] = list(saved["squad"])
-    if is_locked: st.warning("Locked. No changes can be saved.")
+    
+    if is_locked: st.warning("Submission period has ended. No further changes can be saved.")
+    
     f1, f2 = st.columns([2, 1])
-    search = f1.text_input("🔍 Search", key="src_v6")
-    role_f = f2.selectbox("Role", ["All", "BAT", "BOWL", "WK"], key="rol_v6")
+    search = f1.text_input("🔍 Search Name", key="src_v7")
+    role_f = f2.selectbox("Role", ["All", "BAT", "BOWL", "WK"], key="rol_v7")
+    
     cols = st.columns(2)
     display_idx = 0
     for p in sorted(pool):
@@ -151,21 +158,30 @@ with t1:
         if (search.lower() in p.lower()) and (role_f == "All" or info["role"] == role_f):
             with cols[display_idx % 2]:
                 c_cell, c_box = st.columns([4, 1])
-                with c_cell: st.markdown(f'<div class="mobile-matrix"><span class="jersey-dot" style="background:{TEAM_COLORS.get(info["team"], "#ccc")}"></span><div style="flex-grow:1; line-height:1.1;"><span style="font-size:11px; font-weight:600;">{p}</span><br><span class="role-label">{ROLE_EMOJI.get(info["role"])}</span></div></div>', unsafe_allow_html=True)
+                with c_cell: st.markdown(f'<div class="mobile-matrix"><span class="jersey-dot" style="background:{TEAM_COLORS.get(info["team"], "#ccc")}"></span><div style="flex-grow:1; line-height:1.1;"><span style="font-size:11px; font-weight:600;">{p} {"✈️" if info["is_overseas"] else ""}</span><br><span class="role-label">{ROLE_EMOJI.get(info["role"], "BAT")}</span></div></div>', unsafe_allow_html=True)
                 with c_box:
                     checked = st.checkbox("", key=f"cb_{user}_{p}", value=(p in st.session_state[state_key]), disabled=is_locked)
                     if not is_locked:
                         if checked and p not in st.session_state[state_key]: st.session_state[state_key].append(p); st.rerun()
                         elif not checked and p in st.session_state[state_key]: st.session_state[state_key].remove(p); st.rerun()
             display_idx += 1
+            
+    st.divider()
     final_squad = st.session_state[state_key]
-    if len(final_squad) == 11:
+    os_count = sum(1 for p in final_squad if db["player_master"].get(p, {}).get("is_overseas"))
+    wk_count = sum(1 for p in final_squad if db["player_master"].get(p, {}).get("role") == "WK")
+    st.write(f"**Squad:** {len(final_squad)}/11 | **Overseas:** {os_count}/4 | **Keepers:** {wk_count}")
+    
+    if len(final_squad) == 11 and os_count <= 4 and wk_count >= 1:
         cap = st.selectbox("🛡️ Select Captain", final_squad, index=(final_squad.index(saved["cap"]) if saved["cap"] in final_squad else 0), disabled=is_locked)
-        if not is_locked and st.button("🚀 SAVE SQUAD", type="primary", use_container_width=True):
-            if active_week_name not in db["selections"]: db["selections"][active_week_name] = {}
-            db["selections"][active_week_name][user] = {"squad": final_squad, "cap": cap}
-            save_db(db); st.success("Saved!")
+        if not is_locked:
+            if st.button("🚀 SAVE SQUAD", type="primary", use_container_width=True):
+                if active_week_name not in db["selections"]: db["selections"][active_week_name] = {}
+                db["selections"][active_week_name][user] = {"squad": final_squad, "cap": cap}
+                save_db(db); st.success("Squad Locked!")
+    else: st.warning("⚠️ Rules: Exactly 11 Players, Max 4 Overseas, Min 1 Keeper.")
 
+# TAB 2: STANDINGS (AUTO-CARRYOVER)
 with t2:
     lb_data = []
     week_keys = list(SEASON_WEEKS.keys())
@@ -173,7 +189,7 @@ with t2:
         total, week_pts = 0, 0
         for idx, wk_key in enumerate(week_keys):
             sel = db["selections"].get(wk_key, {}).get(m, None)
-            if not sel:
+            if not sel: # Carryover logic
                 for prev_wk in reversed(week_keys[:idx]):
                     lookback = db["selections"].get(prev_wk, {}).get(m, None)
                     if lookback: sel = lookback; break
@@ -189,48 +205,54 @@ with t2:
             total += w_sum
             if wk_key == active_week_name: week_pts = w_sum
         lb_data.append({"Manager": m, "Weekly": week_pts, "Total": total})
+    st.subheader("📊 Leaderboard")
     st.table(pd.DataFrame(sorted(lb_data, key=lambda x: x['Total'], reverse=True)))
 
+# TAB 3: ALL SQUADS VIEW
 with t_view:
     cols = st.columns(len(db["pools"]))
     for i, mgr in enumerate(db["pools"].keys()):
         with cols[i]:
             st.markdown(f"#### {mgr}")
             s_data = db["selections"].get(active_week_name, {}).get(mgr, None)
-            if s_data:
+            if not s_data: st.error("No Selection")
+            else:
                 st.markdown('<div class="squad-view-box">', unsafe_allow_html=True)
-                for p in sorted(s_data["squad"]): st.markdown(f'<div class="squad-player-row">{p}</div>', unsafe_allow_html=True)
+                for player in sorted(s_data["squad"]):
+                    cap_tag = '<span class="cap-badge">C</span>' if player == s_data["cap"] else ""
+                    st.markdown(f'<div class="squad-player-row"><span>{player}</span>{cap_tag}</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
+# TAB 4: ADMIN (Instant Push Score, Safety on Reset)
 with t_admin:
-    st.subheader("🛡️ Admin Safety Zone")
+    st.subheader("🛡️ Score Management")
+    sel_mid = st.selectbox("Select Match", list(matches_this_week.keys()))
+    teams = matches_this_week[sel_mid].split(" vs ")
+    all_p = set()
+    for wk in db["selections"].values():
+        for m_sel in wk.values(): all_p.update(m_sel["squad"])
+    eligible = [p for p in all_p if db["player_master"].get(p, {}).get("team") in teams]
     
-    # Safety Layer 1: Checkbox
-    safety_confirm = st.checkbox("⚠️ Enable Admin Controls (Safety Layer 1)")
+    for p in sorted(eligible):
+        cur = db["scores"].get(p, {}).get(sel_mid, {"r":0, "w":0, "c":0, "s":0})
+        cols = st.columns([2, 1, 1, 1, 1])
+        cols[0].write(p)
+        r = cols[1].number_input("R", 0, 200, cur["r"], key=f"r_{p}")
+        w = cols[2].number_input("W", 0, 10, cur["w"], key=f"w_{p}")
+        c = cols[3].number_input("C", 0, 10, cur["c"], key=f"c_{p}")
+        s = cols[4].number_input("S", 0, 10, cur["s"], key=f"s_{p}")
+        if {"r":r,"w":w,"c":c,"s":s} != cur:
+            if p not in db["scores"]: db["scores"][p] = {}
+            db["scores"][p][sel_mid] = {"r":r,"w":w,"c":c,"s":s}
     
-    if safety_confirm:
-        sel_mid = st.selectbox("Select Match", list(matches_this_week.keys()))
-        teams = matches_this_week[sel_mid].split(" vs ")
-        
-        # Scoring logic
-        eligible = [p for p in db["player_master"] if db["player_master"][p]["team"] in teams]
-        for p in sorted(eligible):
-            cur = db["scores"].get(p, {}).get(sel_mid, {"r":0, "w":0, "c":0, "s":0})
-            cols = st.columns([2, 1, 1, 1, 1])
-            cols[0].write(p)
-            r = cols[1].number_input("R", 0, 200, cur["r"], key=f"r_{p}")
-            w = cols[2].number_input("W", 0, 10, cur["w"], key=f"w_{p}")
-            if {"r":r,"w":w} != cur:
-                if p not in db["scores"]: db["scores"][p] = {}
-                db["scores"][p][sel_mid] = {"r":r,"w":w,"c":0,"s":0}
-        
-        # Safety Layer 2: Push Button
-        st.divider()
-        if st.button("🚀 PUSH SCORES (Safety Layer 2)", use_container_width=True):
-            save_db(db); st.success("Scores Pushed!")
-            
-        st.divider()
-        reset_confirm = st.checkbox("💣 Confirm Total Reset (Dangerous)")
-        if reset_confirm and st.button("DELETE ALL DATA", type="primary"):
+    # Instant Push Score (V1 style)
+    if st.button("🚀 PUSH SCORES", type="primary", use_container_width=True):
+        save_db(db); st.success("Scores saved successfully!")
+
+    st.divider()
+    st.subheader("⚠️ Dangerous Actions")
+    reset_confirm = st.checkbox("Confirm Layer: I want to delete all selections and scores.")
+    if reset_confirm:
+        if st.button("💣 CLEAR ALL DATA", type="primary"):
             if os.path.exists(DB_FILE): os.remove(DB_FILE)
             st.rerun()
