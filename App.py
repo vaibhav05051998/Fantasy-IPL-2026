@@ -38,8 +38,8 @@ def load_db():
         return {
             "selections": {}, 
             "pools": {
-                "Kazim": players[0:7], "Aman": players[7:14], 
-                "Aatish": players[14:21], "Shrijeet": players[21:28], "Nagle": players[28:]
+                "Kazim": players[0:10], "Aman": players[10:20], 
+                "Aatish": players[20:30], "Shrijeet": players[30:40], "Nagle": players[40:]
             }
         }
     with open(DB_FILE, 'r') as f:
@@ -80,18 +80,26 @@ players_to_show = [p for p in pool if search_query.lower() in p.lower()]
 
 for i, p in enumerate(sorted(players_to_show)):
     info = PLAYER_MASTER.get(p)
-    if team_filter != "All Teams" and info['team'] != team_filter:
+    
+    # SAFETY CHECK: Skip if player is not in PLAYER_MASTER
+    if not info:
+        continue
+        
+    p_team = info.get('team', 'IPL')
+    p_role = info.get('role', 'BAT')
+    
+    if team_filter != "All Teams" and p_team != team_filter:
         continue
     
     with cols[i % 2]:
         c_main, c_chk = st.columns([4, 1])
         with c_main:
-            # FIXED: Using single quotes for dictionary keys inside f-string
+            color = TEAM_COLORS.get(p_team, '#000080')
             st.markdown(f'''<div class="mobile-matrix">
-                <span class="jersey-dot" style="background:{TEAM_COLORS.get(info['team'])}"></span>
+                <span class="jersey-dot" style="background:{color}"></span>
                 <div style="flex-grow:1; line-height:1.1;">
-                    <span style="font-size:11px; font-weight:600;">{p} ({info['team']})</span><br>
-                    <span class="role-label">{ROLE_EMOJI.get(info['role'])} {info['role']}</span>
+                    <span style="font-size:11px; font-weight:600;">{p} ({p_team})</span><br>
+                    <span class="role-label">{ROLE_EMOJI.get(p_role, '🏏')} {p_role}</span>
                 </div>
             </div>''', unsafe_allow_html=True)
         with c_chk:
@@ -104,18 +112,21 @@ for i, p in enumerate(sorted(players_to_show)):
                 st.session_state[state_key].remove(p)
                 st.rerun()
 
+# Validation Logic
 squad = st.session_state[state_key]
-roles = Counter([PLAYER_MASTER[p]["role"] for p in squad])
-os_count = sum(1 for p in squad if PLAYER_MASTER[p]["is_overseas"])
+# Filter out any players in the saved squad that might have been removed from players.py
+valid_squad = [p for p in squad if p in PLAYER_MASTER]
+roles = Counter([PLAYER_MASTER[p]["role"] for p in valid_squad])
+os_count = sum(1 for p in valid_squad if PLAYER_MASTER[p].get("is_overseas", False))
 
 st.divider()
-st.write(f"**Current Squad:** {len(squad)}/11 | **Bowlers:** {roles['BOWL']}/4+ | **WK:** {roles['WK']}/1+ | **Overseas:** {os_count}/4 max")
+st.write(f"**Current Squad:** {len(valid_squad)}/11 | **Bowlers:** {roles['BOWL']}/4+ | **WK:** {roles['WK']}/1+ | **Overseas:** {os_count}/4 max")
 
-if len(squad) == 11 and roles['BOWL'] >= 4 and roles['WK'] >= 1 and os_count <= 4:
-    cap = st.selectbox("Assign Captain (2x Points)", squad)
+if len(valid_squad) == 11 and roles['BOWL'] >= 4 and roles['WK'] >= 1 and os_count <= 4:
+    cap = st.selectbox("Assign Captain (2x Points)", valid_squad)
     if st.button("🚀 SAVE & LOCK SQUAD", type="primary", use_container_width=True):
         if week_label not in db["selections"]: db["selections"][week_label] = {}
-        db["selections"][week_label][manager] = {"squad": squad, "cap": cap}
+        db["selections"][week_label][manager] = {"squad": valid_squad, "cap": cap}
         save_db(db)
         st.success("Squad locked successfully!")
 else:
