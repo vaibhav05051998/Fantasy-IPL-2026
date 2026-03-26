@@ -1,8 +1,3 @@
-Bilkul! Yeh raha aapka final, complete App.py code. Ismein maine 500+ lines ka saara data (5 managers, 130+ players, full calendar, aur search/validation logic) ek saath merge kar diya hai.
-
-Is code ko copy karke apne App.py file mein paste karein aur purana saara text hata dein.
-
-Python
 import streamlit as st
 import pandas as pd
 import json
@@ -135,6 +130,7 @@ st.markdown("""
     .role-label { font-size: 10px; color: #64748b; font-weight: 700; }
     .lb-card { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; text-align: center; margin-bottom: 10px; }
     .total-pts { color: #e11d48; font-size: 1.5rem; font-weight: 800; display: block; }
+    .admin-header { background: #1e293b; color: #fff; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -148,9 +144,9 @@ for mid, fixture in SEASON_WEEKS[active_week].items():
     st.sidebar.info(f"**{mid}:** {fixture}")
 
 # --- 5. TABS ---
-t1, t2, t3 = st.tabs(["🏏 SQUAD", "📊 STANDINGS", "🛡️ ADMIN"])
+t1, t2, t_admin = st.tabs(["🏏 SQUAD", "📊 STANDINGS", "🛡️ ADMIN PANEL"])
 
-# TAB 1: SQUAD SELECTION
+# --- TAB 1: SQUAD SELECTION ---
 with t1:
     user = st.selectbox("Manager Name", list(db["pools"].keys()))
     pool = db["pools"].get(user, [])
@@ -200,9 +196,9 @@ with t1:
             save_db(db)
             st.success("Squad Locked!")
     else:
-        st.warning("Rules: Exactly 11 Players, Max 4 Overseas, Min 1 Keeper.")
+        st.warning("Rules: 11 Players, Max 4 Overseas, Min 1 Keeper.")
 
-# TAB 2: STANDINGS
+# --- TAB 2: STANDINGS ---
 with t2:
     st.subheader("📊 Leaderboard")
     lb_data = []
@@ -220,23 +216,55 @@ with t2:
         with cols[i % 2]:
             st.markdown(f'<div class="lb-card"><b>{row["Manager"]}</b><br><small>Week: {row["Weekly"]}</small><span class="total-pts">{row["Total"]}</span></div>', unsafe_allow_html=True)
 
-# TAB 3: ADMIN
-with t3:
-    at1, at2 = st.tabs(["📝 SCORING", "🛠️ SYSTEM"])
-    with at1:
-        match_list = {f"{mid}: {txt}": mid for wk in SEASON_WEEKS.values() for mid, txt in wk.items()}
-        sel_display = st.selectbox("Select Match", list(match_list.keys()))
-        sel_mid = match_list[sel_display]
-        match_teams = sel_display.split(": ")[1].split(" vs ")
-        eligible = [p for p, info in db["player_master"].items() if info['team'] in match_teams]
-        for p in sorted(eligible):
-            cur = db["scores"].get(p, {}).get(sel_mid, 0)
-            score = st.number_input(f"Pts: {p} ({db['player_master'][p]['team']})", 0, value=int(cur), key=f"sc_{sel_mid}_{p}")
-            if score != cur:
-                if p not in db["scores"]: db["scores"][p] = {}
-                db["scores"][p][sel_mid] = score
-                save_db(db)
-    with at2:
-        if st.button("RESET ALL DATA"):
-            if os.path.exists(DB_FILE): os.remove(DB_FILE)
-            st.rerun()
+# --- TAB 3: ADMIN PANEL (FIXED VISIBILITY) ---
+with t_admin:
+    st.markdown('<div class="admin-header"><h3>⚙️ Admin Management</h3></div>', unsafe_allow_html=True)
+    
+    # Dashboard stats
+    d1, d2, d3 = st.columns(3)
+    d1.metric("Total Players", len(db["player_master"]))
+    d2.metric("Manager Pools", len(db["pools"]))
+    d3.metric("Matches Count", 56)
+
+    # SUB-TABS FOR ADMIN
+    as1, as2 = st.tabs(["📝 ENTER SCORES", "🛠️ SYSTEM RESET"])
+
+    with as1:
+        st.write("### Match Scoring")
+        # Get list of all matches across all weeks
+        all_match_options = {}
+        for wk_name, matches in SEASON_WEEKS.items():
+            for mid, fixture in matches.items():
+                all_match_options[f"{mid}: {fixture} ({wk_name})"] = mid
+
+        sel_display = st.selectbox("Select Match to Score", list(all_match_options.keys()))
+        sel_mid = all_match_options[sel_display]
+        
+        # Extract teams from "RCB vs SRH"
+        teams_in_match = sel_display.split(": ")[1].split(" (")[0].split(" vs ")
+        
+        # Filter players belonging to these teams
+        eligible_players = [p for p, info in db["player_master"].items() if info['team'] in teams_in_match]
+        
+        if not eligible_players:
+            st.info("No players found in database for these teams.")
+        else:
+            st.info(f"Enter points for players in: {teams_in_match[0]} vs {teams_in_match[1]}")
+            for p in sorted(eligible_players):
+                cur_score = db["scores"].get(p, {}).get(sel_mid, 0)
+                new_score = st.number_input(f"{p} ({db['player_master'][p]['team']})", min_value=0, value=int(cur_score), key=f"adm_sc_{sel_mid}_{p}")
+                
+                if new_score != cur_score:
+                    if p not in db["scores"]: db["scores"][p] = {}
+                    db["scores"][p][sel_mid] = new_score
+                    save_db(db)
+                    st.toast(f"Updated {p} to {new_score}")
+
+    with as2:
+        st.write("### Danger Zone")
+        st.warning("Clicking the button below will delete all submitted squads and scores.")
+        if st.button("🔥 FULL SYSTEM RESET", use_container_width=True):
+            if os.path.exists(DB_FILE):
+                os.remove(DB_FILE)
+                st.success("Database deleted. Refreshing app...")
+                st.rerun()
