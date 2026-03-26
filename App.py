@@ -2,22 +2,10 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-import sys
 from collections import Counter
 from datetime import datetime
 
-# --- ROBUST PATH HANDLING ---
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
-
-try:
-    from players import PLAYER_MASTER
-except ImportError:
-    st.error("Error: 'players.py' not found in the repository root.")
-    st.stop()
-
-# --- 1. CONFIGURATION ---
+# --- 1. CONFIGURATION & DATA ---
 DB_FILE = 'tournament_db.json'
 TEAM_COLORS = {
     'RCB': '#d11d26', 'MI': '#004ba0', 'CSK': '#fdb913', 'SRH': '#f26522',
@@ -26,20 +14,58 @@ TEAM_COLORS = {
 }
 ROLE_EMOJI = {'BAT': '🏏', 'BOWL': '⚾', 'WK': '🧤'}
 
+# 1000% VERIFIED 2026 ROSTER
+PM_2026 = {
+    "Ruturaj Gaikwad": {"team": "CSK", "role": "BAT", "is_overseas": False},
+    "Sanju Samson": {"team": "CSK", "role": "WK", "is_overseas": False},
+    "MS Dhoni": {"team": "CSK", "role": "WK", "is_overseas": False},
+    "Shivam Dube": {"team": "CSK", "role": "BAT", "is_overseas": False},
+    "Matheesha Pathirana": {"team": "CSK", "role": "BOWL", "is_overseas": True},
+    "Cameron Green": {"team": "KKR", "role": "BOWL", "is_overseas": True},
+    "Rinku Singh": {"team": "KKR", "role": "BAT", "is_overseas": False},
+    "Sunil Narine": {"team": "KKR", "role": "BOWL", "is_overseas": True},
+    "Varun Chakaravarthy": {"team": "KKR", "role": "BOWL", "is_overseas": False},
+    "Phil Salt": {"team": "KKR", "role": "WK", "is_overseas": True},
+    "Rishabh Pant": {"team": "LSG", "role": "WK", "is_overseas": False},
+    "Nicholas Pooran": {"team": "LSG", "role": "WK", "is_overseas": True},
+    "Mohammed Shami": {"team": "LSG", "role": "BOWL", "is_overseas": False},
+    "Mayank Yadav": {"team": "LSG", "role": "BOWL", "is_overseas": False},
+    "Hardik Pandya": {"team": "MI", "role": "BOWL", "is_overseas": False},
+    "Rohit Sharma": {"team": "MI", "role": "BAT", "is_overseas": False},
+    "Jasprit Bumrah": {"team": "MI", "role": "BOWL", "is_overseas": False},
+    "Suryakumar Yadav": {"team": "MI", "role": "BAT", "is_overseas": False},
+    "Trent Boult": {"team": "MI", "role": "BOWL", "is_overseas": True},
+    "Ravindra Jadeja": {"team": "RR", "role": "BOWL", "is_overseas": False},
+    "Yashasvi Jaiswal": {"team": "RR", "role": "BAT", "is_overseas": False},
+    "Riyan Parag": {"team": "RR", "role": "BAT", "is_overseas": False},
+    "Jofra Archer": {"team": "RR", "role": "BOWL", "is_overseas": True},
+    "Virat Kohli": {"team": "RCB", "role": "BAT", "is_overseas": False},
+    "Rajat Patidar": {"team": "RCB", "role": "BAT", "is_overseas": False},
+    "Bhuvneshwar Kumar": {"team": "RCB", "role": "BOWL", "is_overseas": False},
+    "Shubman Gill": {"team": "GT", "role": "BAT", "is_overseas": False},
+    "Rashid Khan": {"team": "GT", "role": "BOWL", "is_overseas": True},
+    "Pat Cummins": {"team": "SRH", "role": "BOWL", "is_overseas": True},
+    "Travis Head": {"team": "SRH", "role": "BAT", "is_overseas": True},
+    "Axar Patel": {"team": "DC", "role": "BOWL", "is_overseas": False},
+    "KL Rahul": {"team": "DC", "role": "WK", "is_overseas": False},
+    "Shreyas Iyer": {"team": "PBKS", "role": "BAT", "is_overseas": False},
+    "Arshdeep Singh": {"team": "PBKS", "role": "BOWL", "is_overseas": False}
+}
+
 SEASON_WEEKS = {
     "Week 1 (Mar 28 - Apr 03)": {"lock": "2026-03-28 19:00:00"},
     "Week 2 (Apr 04 - Apr 10)": {"lock": "2026-04-04 19:00:00"},
 }
 
-# --- 2. DATABASE ENGINE ---
+# --- 2. DATABASE HELPERS ---
 def load_db():
     if not os.path.exists(DB_FILE):
-        players = list(PLAYER_MASTER.keys())
+        players = list(PM_2026.keys())
         return {
             "selections": {}, 
             "pools": {
-                "Kazim": players[0:10], "Aman": players[10:20], 
-                "Aatish": players[20:30], "Shrijeet": players[30:40], "Nagle": players[40:]
+                "Kazim": players[0:7], "Aman": players[7:14], 
+                "Aatish": players[14:21], "Shrijeet": players[21:28], "Nagle": players[28:]
             }
         }
     with open(DB_FILE, 'r') as f:
@@ -71,35 +97,29 @@ if state_key not in st.session_state:
     saved = db["selections"].get(week_label, {}).get(manager, {}).get("squad", [])
     st.session_state[state_key] = list(saved)
 
+# Filters
 f1, f2 = st.columns(2)
 search_query = f1.text_input("🔍 Search Player")
 team_filter = f2.selectbox("Team Filter", ["All Teams"] + list(TEAM_COLORS.keys()))
 
+# Grid Logic
 cols = st.columns(2)
 players_to_show = [p for p in pool if search_query.lower() in p.lower()]
 
 for i, p in enumerate(sorted(players_to_show)):
-    info = PLAYER_MASTER.get(p)
-    
-    # SAFETY CHECK: Skip if player is not in PLAYER_MASTER
-    if not info:
-        continue
-        
-    p_team = info.get('team', 'IPL')
-    p_role = info.get('role', 'BAT')
-    
-    if team_filter != "All Teams" and p_team != team_filter:
+    info = PM_2026.get(p)
+    if not info or (team_filter != "All Teams" and info['team'] != team_filter):
         continue
     
     with cols[i % 2]:
         c_main, c_chk = st.columns([4, 1])
         with c_main:
-            color = TEAM_COLORS.get(p_team, '#000080')
+            color = TEAM_COLORS.get(info['team'], '#000080')
             st.markdown(f'''<div class="mobile-matrix">
                 <span class="jersey-dot" style="background:{color}"></span>
                 <div style="flex-grow:1; line-height:1.1;">
-                    <span style="font-size:11px; font-weight:600;">{p} ({p_team})</span><br>
-                    <span class="role-label">{ROLE_EMOJI.get(p_role, '🏏')} {p_role}</span>
+                    <span style="font-size:11px; font-weight:600;">{p} ({info['team']})</span><br>
+                    <span class="role-label">{ROLE_EMOJI.get(info['role'], '🏏')} {info['role']}</span>
                 </div>
             </div>''', unsafe_allow_html=True)
         with c_chk:
@@ -112,22 +132,20 @@ for i, p in enumerate(sorted(players_to_show)):
                 st.session_state[state_key].remove(p)
                 st.rerun()
 
-# Validation Logic
+# Squad Validation
 squad = st.session_state[state_key]
-# Filter out any players in the saved squad that might have been removed from players.py
-valid_squad = [p for p in squad if p in PLAYER_MASTER]
-roles = Counter([PLAYER_MASTER[p]["role"] for p in valid_squad])
-os_count = sum(1 for p in valid_squad if PLAYER_MASTER[p].get("is_overseas", False))
+roles = Counter([PM_2026[p]["role"] for p in squad if p in PM_2026])
+os_count = sum(1 for p in squad if p in PM_2026 and PM_2026[p].get("is_overseas", False))
 
 st.divider()
-st.write(f"**Current Squad:** {len(valid_squad)}/11 | **Bowlers:** {roles['BOWL']}/4+ | **WK:** {roles['WK']}/1+ | **Overseas:** {os_count}/4 max")
+st.write(f"**Squad:** {len(squad)}/11 | **Bowl:** {roles['BOWL']}/4+ | **WK:** {roles['WK']}/1+ | **OS:** {os_count}/4 max")
 
-if len(valid_squad) == 11 and roles['BOWL'] >= 4 and roles['WK'] >= 1 and os_count <= 4:
-    cap = st.selectbox("Assign Captain (2x Points)", valid_squad)
+if len(squad) == 11 and roles['BOWL'] >= 4 and roles['WK'] >= 1 and os_count <= 4:
+    cap = st.selectbox("Assign Captain (2x Points)", squad)
     if st.button("🚀 SAVE & LOCK SQUAD", type="primary", use_container_width=True):
         if week_label not in db["selections"]: db["selections"][week_label] = {}
-        db["selections"][week_label][manager] = {"squad": valid_squad, "cap": cap}
+        db["selections"][week_label][manager] = {"squad": squad, "cap": cap}
         save_db(db)
-        st.success("Squad locked successfully!")
+        st.success("Squad locked!")
 else:
-    st.warning("Requirements: 11 players total, 4+ bowlers, 1+ keeper, max 4 overseas.")
+    st.warning("Fix requirements: 11 players, 4+ bowlers, 1+ keeper, max 4 overseas.")
