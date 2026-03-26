@@ -1,5 +1,5 @@
-# VERSION: ver01_260326_ULTRA_V8
-# STATUS: V1 Calendar + V5 UI + Carryover + 7PM Sat Lock + Selective Admin Safety
+# VERSION: ver02_26032026_Stable_Filtered
+# STATUS: V1 Calendar + V5 UI + Team Filter + Min 4 Bowlers + Team Display
 
 import streamlit as st
 import pandas as pd
@@ -17,7 +17,7 @@ TEAM_COLORS = {
 }
 ROLE_EMOJI = {'BAT': '🏏', 'BOWL': '⚾', 'WK': '🧤'}
 
-# FALLBACK TO V1 SCHEDULE
+# V1 SCHEDULE
 SEASON_WEEKS = {
     "Week 1 (Mar 28 - Apr 03)": {"lock": "2026-03-28 19:00:00", "matches": {"M01": "RCB vs SRH", "M02": "MI vs KKR", "M03": "RR vs CSK", "M04": "PBKS vs GT", "M05": "LSG vs DC", "M06": "KKR vs SRH", "M07": "CSK vs PBKS"}},
     "Week 2 (Apr 04 - Apr 10)": {"lock": "2026-04-04 19:00:00", "matches": {"M08": "DC vs MI", "M09": "GT vs RR", "M10": "SRH vs LSG", "M11": "RCB vs CSK", "M12": "KKR vs PBKS", "M13": "RR vs MI", "M14": "DC vs GT"}},
@@ -141,33 +141,53 @@ with t1:
     state_key = f"sel_{user}_{active_week_name}"
     if state_key not in st.session_state: st.session_state[state_key] = list(saved["squad"])
     if is_locked: st.warning("Locked. No changes can be saved.")
-    f1, f2 = st.columns([2, 1])
-    search = f1.text_input("🔍 Search", key="src_v8")
-    role_f = f2.selectbox("Role", ["All", "BAT", "BOWL", "WK"], key="rol_v8")
+    
+    # FILTERS
+    f1, f2, f3 = st.columns([2, 1, 1])
+    search = f1.text_input("🔍 Search", key="src_v10")
+    team_f = f2.selectbox("Team Filter", ["All"] + sorted(list(TEAM_COLORS.keys())), key="team_v10")
+    role_f = f3.selectbox("Role Filter", ["All", "BAT", "BOWL", "WK"], key="rol_v10")
+    
     cols = st.columns(2)
     display_idx = 0
     for p in sorted(pool):
         info = db["player_master"].get(p, {"team": "IPL", "role": "BAT", "is_overseas": False})
-        if (search.lower() in p.lower()) and (role_f == "All" or info["role"] == role_f):
+        match_search = search.lower() in p.lower()
+        match_team = (team_f == "All" or info["team"] == team_f)
+        match_role = (role_f == "All" or info["role"] == role_f)
+        
+        if match_search and match_team and match_role:
             with cols[display_idx % 2]:
                 c_cell, c_box = st.columns([4, 1])
-                with c_cell: st.markdown(f'<div class="mobile-matrix"><span class="jersey-dot" style="background:{TEAM_COLORS.get(info["team"], "#ccc")}"></span><div style="flex-grow:1; line-height:1.1;"><span style="font-size:11px; font-weight:600;">{p} {"✈️" if info["is_overseas"] else ""}</span><br><span class="role-label">{ROLE_EMOJI.get(info["role"], "BAT")}</span></div></div>', unsafe_allow_html=True)
+                with c_cell: 
+                    st.markdown(f'''<div class="mobile-matrix">
+                        <span class="jersey-dot" style="background:{TEAM_COLORS.get(info["team"], "#ccc")}"></span>
+                        <div style="flex-grow:1; line-height:1.1;">
+                            <span style="font-size:11px; font-weight:600;">{p} ({info["team"]}) {"✈️" if info["is_overseas"] else ""}</span><br>
+                            <span class="role-label">{ROLE_EMOJI.get(info["role"], "BAT")} {info["role"]}</span>
+                        </div>
+                    </div>''', unsafe_allow_html=True)
                 with c_box:
                     checked = st.checkbox("", key=f"cb_{user}_{p}", value=(p in st.session_state[state_key]), disabled=is_locked)
                     if not is_locked:
                         if checked and p not in st.session_state[state_key]: st.session_state[state_key].append(p); st.rerun()
                         elif not checked and p in st.session_state[state_key]: st.session_state[state_key].remove(p); st.rerun()
             display_idx += 1
+            
     final_squad = st.session_state[state_key]
     os_count = sum(1 for p in final_squad if db["player_master"].get(p, {}).get("is_overseas"))
     wk_count = sum(1 for p in final_squad if db["player_master"].get(p, {}).get("role") == "WK")
-    if len(final_squad) == 11 and os_count <= 4 and wk_count >= 1:
+    bowl_count = sum(1 for p in final_squad if db["player_master"].get(p, {}).get("role") == "BOWL")
+    
+    st.write(f"**Squad:** {len(final_squad)}/11 | **Overseas:** {os_count}/4 | **Keepers:** {wk_count} | **Bowlers:** {bowl_count}/4")
+    
+    if len(final_squad) == 11 and os_count <= 4 and wk_count >= 1 and bowl_count >= 4:
         cap = st.selectbox("🛡️ Select Captain", final_squad, index=(final_squad.index(saved["cap"]) if saved["cap"] in final_squad else 0), disabled=is_locked)
         if not is_locked and st.button("🚀 SAVE SQUAD", type="primary", use_container_width=True):
             if active_week_name not in db["selections"]: db["selections"][active_week_name] = {}
             db["selections"][active_week_name][user] = {"squad": final_squad, "cap": cap}
             save_db(db); st.success("Saved!")
-    else: st.warning("⚠️ Rules: Exactly 11 Players, Max 4 Overseas, Min 1 Keeper.")
+    else: st.warning("⚠️ Rules: Exactly 11 Players, Max 4 Overseas, Min 1 Keeper, Min 4 Bowlers.")
 
 with t2:
     lb_data = []
@@ -176,7 +196,7 @@ with t2:
         total, week_pts = 0, 0
         for idx, wk_key in enumerate(week_keys):
             sel = db["selections"].get(wk_key, {}).get(m, None)
-            if not sel: # Carryover logic
+            if not sel: 
                 for prev_wk in reversed(week_keys[:idx]):
                     lookback = db["selections"].get(prev_wk, {}).get(m, None)
                     if lookback: sel = lookback; break
@@ -204,8 +224,9 @@ with t_view:
             if s_data:
                 st.markdown('<div class="squad-view-box">', unsafe_allow_html=True)
                 for player in sorted(s_data["squad"]):
+                    info = db["player_master"].get(player, {})
                     cap_tag = '<span class="cap-badge">C</span>' if player == s_data["cap"] else ""
-                    st.markdown(f'<div class="squad-player-row"><span>{player}</span>{cap_tag}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="squad-player-row"><span>{player} ({info.get("team","")})</span>{cap_tag}</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
 with t_admin:
