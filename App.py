@@ -111,7 +111,7 @@ db = load_db()
 st.sidebar.title("🗓️ Season Schedule")
 active_week_name = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()))
 week_config = SEASON_WEEKS[active_week_name]
-lock_time = datetime.strptime(week_config["lock"], "%2026-%m-%d %H:%M:%S")
+lock_time = datetime.strptime(week_config["lock"], "%Y-%m-%d %H:%M:%S")
 is_locked = datetime.now() > lock_time
 
 if is_locked: st.sidebar.error(f"🔒 Locked at {lock_time.strftime('%I:%M %p, %b %d')}")
