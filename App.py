@@ -1,12 +1,11 @@
-# VERSION: ver01_260326_ULTRA
-# STATUS: Corrected Sat-Fri Schedule + Points Progress Chart + All Stable Features
+# VERSION: ver01_260326_STABLE_V2
+# STATUS: Zero-Dependency Chart + Corrected Sat-Fri Schedule + All Stable Features
 
 import streamlit as st
 import pandas as pd
 import json
 import os
 from collections import Counter
-import plotly.express as px
 
 # --- 1. CONFIGURATION & DATA ---
 DB_FILE = 'tournament_db.json'
@@ -240,9 +239,11 @@ with t2:
     
     st.divider()
     st.subheader("📈 Points Progress")
-    df_chart = pd.DataFrame(chart_rows)
-    fig = px.line(df_chart, x="Week", y="Total Points", color="Manager", markers=True)
-    st.plotly_chart(fig, use_container_width=True)
+    if chart_rows:
+        df_chart = pd.DataFrame(chart_rows)
+        # Pivot for st.line_chart requirement
+        chart_pivot = df_chart.pivot(index="Week", columns="Manager", values="Total Points")
+        st.line_chart(chart_pivot)
 
     st.divider()
     st.subheader("🔥 Top Performers (This Week)")
