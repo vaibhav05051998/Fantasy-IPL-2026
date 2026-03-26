@@ -3,7 +3,7 @@ import pandas as pd
 import json
 import os
 
-# --- 1. CONFIGURATION & FULL SEASON CALENDAR ---
+# --- 1. CONFIGURATION ---
 TEAM_COLORS = {
     'RCB': '#d11d26', 'MI': '#004ba0', 'CSK': '#fdb913', 'SRH': '#f26522',
     'RR': '#ea1a85', 'KKR': '#3a225d', 'GT': '#1b2133', 'LSG': '#0057e2',
@@ -12,7 +12,6 @@ TEAM_COLORS = {
 
 ROLE_EMOJI = {'BAT': '🏏 BAT', 'BOWL': '⚾ BOWL', 'WK': '🧤 WK'}
 
-# FULL SEASON FIXTURES (8 Weeks + Playoffs)
 SEASON_WEEKS = {
     "Week 1 (Mar 28 - Apr 03)": {"M01": "RCB vs SRH", "M02": "MI vs KKR", "M03": "RR vs CSK", "M04": "PBKS vs GT", "M05": "LSG vs DC", "M06": "KKR vs SRH", "M07": "CSK vs PBKS"},
     "Week 2 (Apr 04 - Apr 10)": {"M08": "DC vs MI", "M09": "GT vs RR", "M10": "SRH vs LSG", "M11": "RCB vs CSK", "M12": "KKR vs PBKS", "M13": "RR vs MI", "M14": "DC vs GT"},
@@ -25,36 +24,40 @@ SEASON_WEEKS = {
     "Playoffs (May 23 - May 30)": {"SF1": "Qualifier 1", "SF2": "Eliminator", "SF3": "Qualifier 2", "FIN": "Grand Final"}
 }
 
-# --- 2. DATABASE ENGINE WITH PREFILLED SQUADS ---
+# --- 2. DATABASE ENGINE ---
 DB_FILE = 'tournament_db.json'
 
 def load_db():
     if os.path.exists(DB_FILE):
         with open(DB_FILE, 'r') as f: return json.load(f)
     
-    # Prefilled Data if no database exists
-    initial_db = {
+    return {
         "selections": {}, "scores": {},
         "pools": {
-            "Kazim": ["Rajat Patidar", "Devdutt Padikkal", "Shimron Hetmyer", "Pat Cummins", "Jos Buttler"],
-            "Adi": ["Philip Salt", "Yashasvi Jaiswal", "Nicholas Pooran", "Jasprit Bumrah", "Shubman Gill"],
-            "Aatish": ["Tim David", "Quinton de Kock", "Rohit Sharma", "MS Dhoni", "Hardik Pandya"],
-            "Shrijeet": ["Travis Head", "Ishan Kishan", "Shreyas Iyer", "Trent Boult", "Ruturaj Gaikwad"],
-            "Nagle": ["Heinrich Klaasen", "Virat Kohli", "Suryakumar Yadav", "Mitchell Starc", "KL Rahul"]
+            "Kazim": ["Jos Buttler", "Pat Cummins", "Rajat Patidar", "Devdutt Padikkal", "Shimron Hetmyer"],
+            "Adi": ["Philip Salt", "Yashasvi Jaiswal", "Shubman Gill", "Nicholas Pooran", "Jasprit Bumrah"],
+            "Aatish": ["Rohit Sharma", "MS Dhoni", "Tim David", "Quinton de Kock", "Hardik Pandya"],
+            "Shrijeet": ["Travis Head", "Ishan Kishan", "Ruturaj Gaikwad", "Shreyas Iyer", "Trent Boult"],
+            "Nagle": ["Virat Kohli", "Suryakumar Yadav", "Heinrich Klaasen", "Mitchell Starc", "KL Rahul"]
         },
         "player_master": {
             "Virat Kohli": {"team": "RCB", "role": "BAT", "is_overseas": False},
-            "Heinrich Klaasen": {"team": "SRH", "role": "WK", "is_overseas": True},
-            "Jasprit Bumrah": {"team": "MI", "role": "BOWL", "is_overseas": False},
-            "Pat Cummins": {"team": "SRH", "role": "BOWL", "is_overseas": True},
             "MS Dhoni": {"team": "CSK", "role": "WK", "is_overseas": False},
+            "Jasprit Bumrah": {"team": "MI", "role": "BOWL", "is_overseas": False},
             "Jos Buttler": {"team": "RR", "role": "WK", "is_overseas": True},
+            "Pat Cummins": {"team": "SRH", "role": "BOWL", "is_overseas": True},
+            "Philip Salt": {"team": "KKR", "role": "WK", "is_overseas": True},
+            "Yashasvi Jaiswal": {"team": "RR", "role": "BAT", "is_overseas": False},
             "Rohit Sharma": {"team": "MI", "role": "BAT", "is_overseas": False},
-            "Travis Head": {"team": "SRH", "role": "BAT", "is_overseas": True}
-            # (Admin can add more via the app UI)
+            "Travis Head": {"team": "SRH", "role": "BAT", "is_overseas": True},
+            "Heinrich Klaasen": {"team": "SRH", "role": "WK", "is_overseas": True},
+            "Suryakumar Yadav": {"team": "MI", "role": "BAT", "is_overseas": False},
+            "Hardik Pandya": {"team": "MI", "role": "BOWL", "is_overseas": False},
+            "Mitchell Starc": {"team": "KKR", "role": "BOWL", "is_overseas": True},
+            "Ruturaj Gaikwad": {"team": "CSK", "role": "BAT", "is_overseas": False},
+            "Ishan Kishan": {"team": "MI", "role": "WK", "is_overseas": False}
         }
     }
-    return initial_db
 
 def save_db(data):
     with open(DB_FILE, 'w') as f: json.dump(data, f)
@@ -65,7 +68,7 @@ db = load_db()
 st.set_page_config(page_title="Inner Circle IPL", layout="centered")
 st.markdown("""
 <style>
-    .mobile-matrix { border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; height: 45px; }
+    .mobile-matrix { border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; height: 46px; }
     .jersey-dot { height: 8px; width: 8px; border-radius: 50%; margin-right: 5px; }
     .role-label { font-size: 10px; color: #64748b; font-weight: bold; }
     .lb-card { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; text-align: center; margin-bottom: 10px; }
@@ -73,31 +76,29 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. SIDEBAR SCHEDULE & COUNTS ---
+# --- 4. SIDEBAR ---
 st.sidebar.title("🗓️ Season Schedule")
 active_week = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()))
 week_matches = SEASON_WEEKS[active_week]
 
 team_counts = {}
 for m_text in week_matches.values():
-    teams = m_text.split(" vs ")
-    for t in teams: team_counts[t] = team_counts.get(t, 0) + 1
+    for t in m_text.split(" vs "): team_counts[t] = team_counts.get(t, 0) + 1
 
-st.sidebar.markdown("### Teams Playing This Week")
+st.sidebar.markdown("### Team Activity")
 for t, count in sorted(team_counts.items()):
-    st.sidebar.write(f"**{t}:** {count} {'Match' if count==1 else 'Matches'}")
+    st.sidebar.write(f"**{t}:** {count} Matches")
 
 st.sidebar.divider()
-st.sidebar.markdown("### Week Fixtures")
 for mid, fixture in week_matches.items():
     st.sidebar.info(f"**{mid}:** {fixture}")
 
 # --- 5. MAIN TABS ---
 t1, t2, t3 = st.tabs(["🏏 SQUAD", "📊 STANDINGS", "🛡️ ADMIN"])
 
-# --- TAB 1: SQUAD SELECTION ---
+# --- TAB 1: SQUAD ---
 with t1:
-    user = st.selectbox("Select Manager", list(db["pools"].keys()))
+    user = st.selectbox("Manager Name", list(db["pools"].keys()), key="squad_manager_select")
     pool = db["pools"].get(user, [])
     saved = db["selections"].get(active_week, {}).get(user, {"squad": [], "cap": ""})
     
@@ -106,16 +107,16 @@ with t1:
     for idx, p in enumerate(pool):
         info = db["player_master"].get(p, {"team": "IPL", "role": "BAT", "is_overseas": False})
         with cols[idx % 2]:
-            c_info, c_check = st.columns([4, 1])
-            with c_info:
+            c1, c2 = st.columns([4, 1])
+            with c1:
                 st.markdown(f'''<div class="mobile-matrix">
                     <span class="jersey-dot" style="background:{TEAM_COLORS.get(info['team'], '#ccc')}"></span>
                     <div style="flex-grow:1; line-height:1.1;">
-                        <span style="font-size:12px;">{p} {"✈️" if info['is_overseas'] else ""}</span><br>
+                        <span style="font-size:12px; font-weight:500;">{p} {"✈️" if info['is_overseas'] else ""}</span><br>
                         <span class="role-label">{ROLE_EMOJI.get(info['role'], 'BAT')}</span>
                     </div>
                 </div>''', unsafe_allow_html=True)
-            with c_check:
+            with c2:
                 if st.checkbox("", key=f"sel_{user}_{p}", value=(p in saved["squad"]), label_visibility="collapsed"):
                     selected.append(p)
                     if info["is_overseas"]: os_count += 1
@@ -177,8 +178,8 @@ with t3:
 
     with adm_t2:
         st.write("### Edit Manager Pools")
-        m_edit = st.selectbox("Select Manager", list(db["pools"].keys()))
-        # DROPDOWN MULTISELECT for prefilled editing
+        # UNIQUE KEY ADDED HERE TO FIX THE ERROR
+        m_edit = st.selectbox("Select Manager to Edit", list(db["pools"].keys()), key="admin_manager_select")
         updated_pool = st.multiselect(f"Squad for {m_edit}", options=sorted(list(db["player_master"].keys())), default=db["pools"][m_edit])
         if st.button(f"Update {m_edit} Pool"):
             db["pools"][m_edit] = updated_pool
@@ -191,9 +192,9 @@ with t3:
         if p_name == "Add New": p_name = st.text_input("Player Name")
         
         ca, cb, cc = st.columns(3)
-        p_team = ca.selectbox("Team", list(TEAM_COLORS.keys()))
-        p_role = cb.selectbox("Role", ["BAT", "BOWL", "WK"])
-        p_os = cc.checkbox("Overseas?")
+        p_team = ca.selectbox("Team", list(TEAM_COLORS.keys()), key="edit_team")
+        p_role = cb.selectbox("Role", ["BAT", "BOWL", "WK"], key="edit_role")
+        p_os = cc.checkbox("Overseas?", key="edit_os")
         
         if st.button("Save Player"):
             db["player_master"][p_name] = {"team": p_team, "role": p_role, "is_overseas": p_os}
