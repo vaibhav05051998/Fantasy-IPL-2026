@@ -1,10 +1,12 @@
-# STATUS: Stable + Live Rank Delta + Weekly Top Performers
+# VERSION: ver01_260326_ULTRA
+# STATUS: Corrected Sat-Fri Schedule + Points Progress Chart + All Stable Features
 
 import streamlit as st
 import pandas as pd
 import json
 import os
 from collections import Counter
+import plotly.express as px
 
 # --- 1. CONFIGURATION & DATA ---
 DB_FILE = 'tournament_db.json'
@@ -15,6 +17,7 @@ TEAM_COLORS = {
 }
 ROLE_EMOJI = {'BAT': '🏏', 'BOWL': '⚾', 'WK': '🧤'}
 
+# CORRECTED SAT-FRI SCHEDULE
 SEASON_WEEKS = {
     "Week 1 (Mar 28 - Apr 03)": {"M01": "RCB vs SRH", "M02": "MI vs KKR", "M03": "RR vs CSK", "M04": "PBKS vs GT", "M05": "LSG vs DC", "M06": "KKR vs SRH", "M07": "CSK vs PBKS"},
     "Week 2 (Apr 04 - Apr 10)": {"M08": "DC vs MI", "M09": "GT vs RR", "M10": "SRH vs LSG", "M11": "RCB vs CSK", "M12": "KKR vs PBKS", "M13": "RR vs MI", "M14": "DC vs GT"},
@@ -139,6 +142,7 @@ for mid, fixture in matches_this_week.items():
 
 t1, t_view, t2, t_admin = st.tabs(["🏏 MY SQUAD", "👀 ALL SQUADS", "📊 STANDINGS", "🛡️ ADMIN"])
 
+# TAB 1: SQUAD SELECTION
 with t1:
     user = st.selectbox("Manager Name", list(db["pools"].keys()))
     pool = db["pools"].get(user, [])
@@ -192,8 +196,10 @@ with t_view:
                     st.markdown(f'<div class="squad-player-row"><span>{ROLE_EMOJI.get(p_info["role"], "")} {player}</span>{cap_tag}</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
+# TAB 2: STANDINGS (INCLUDES CHART)
 with t2:
     lb_data = []
+    chart_rows = []
     player_weekly_pts = Counter()
     week_keys = list(SEASON_WEEKS.keys())
     cur_idx = week_keys.index(active_week)
@@ -207,12 +213,13 @@ with t2:
                 p_pts = 0
                 for mid in matches:
                     s = db["scores"].get(p, {}).get(mid, {"r":0, "w":0, "c":0, "s":0})
-                    match_pts = (s.get("r",0)*1) + (s.get("w",0)*20) + (s.get("c",0)*5) + (s.get("s",0)*5)
-                    p_pts += match_pts
-                    if wk == active_week: player_weekly_pts[p] += match_pts
+                    m_pts = (s.get("r",0)*1) + (s.get("w",0)*20) + (s.get("c",0)*5) + (s.get("s",0)*5)
+                    p_pts += m_pts
+                    if wk == active_week: player_weekly_pts[p] += m_pts
                 if p == sel["cap"]: p_pts *= 2
                 w_pts += p_pts
             total += w_pts
+            chart_rows.append({"Manager": m, "Week": wk.split(" ")[1], "Total Points": total})
             if wk == active_week: week = w_pts
             if idx < cur_idx: prev += w_pts
         lb_data.append({"Manager": m, "Weekly": week, "Total": total, "PrevTotal": prev})
@@ -231,6 +238,12 @@ with t2:
         with cols[i % 2]:
             st.metric(f"#{c_pos} {row['Manager']}", f"{row['Total']} pts", f"{row['Weekly']} ({d_lbl})", delta_color=d_clr)
     
+    st.divider()
+    st.subheader("📈 Points Progress")
+    df_chart = pd.DataFrame(chart_rows)
+    fig = px.line(df_chart, x="Week", y="Total Points", color="Manager", markers=True)
+    st.plotly_chart(fig, use_container_width=True)
+
     st.divider()
     st.subheader("🔥 Top Performers (This Week)")
     if player_weekly_pts:
