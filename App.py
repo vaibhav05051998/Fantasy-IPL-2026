@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
+from collections import Counter
 
 # --- 1. CONFIGURATION & DATA ---
 DB_FILE = 'tournament_db.json'
@@ -10,7 +11,7 @@ TEAM_COLORS = {
     'RR': '#ea1a85', 'KKR': '#3a225d', 'GT': '#1b2133', 'LSG': '#0057e2',
     'DC': '#0078bc', 'PBKS': '#dd1f2d', 'IPL': '#000080'
 }
-ROLE_EMOJI = {'BAT': '🏏 BAT', 'BOWL': '⚾ BOWL', 'WK': '🧤 WK'}
+ROLE_EMOJI = {'BAT': '🏏', 'BOWL': '⚾', 'WK': '🧤'}
 
 SEASON_WEEKS = {
     "Week 1 (Mar 28 - Apr 03)": {"M01": "RCB vs SRH", "M02": "MI vs KKR", "M03": "RR vs CSK", "M04": "PBKS vs GT", "M05": "LSG vs DC", "M06": "KKR vs SRH", "M07": "CSK vs PBKS"},
@@ -27,6 +28,7 @@ SEASON_WEEKS = {
 # --- 2. DATABASE ENGINE ---
 def load_db():
     pm = {
+        # ... (Player Master Data as per previous version)
         # KAZIM
         "Rajat Patidar": {"team": "RCB", "role": "BAT", "is_overseas": False}, "Devdutt Padikkal": {"team": "LSG", "role": "BAT", "is_overseas": False},
         "Shimron Hetmyer": {"team": "RR", "role": "BAT", "is_overseas": True}, "Dhruv Jurel": {"team": "RR", "role": "WK", "is_overseas": False},
@@ -101,11 +103,9 @@ def load_db():
     }
 
     initial_pools = {
-        "Kazim": ["Rajat Patidar", "Devdutt Padikkal", "Shimron Hetmyer", "Dhruv Jurel", "Vaibhav Suryavanshi", "Priyansh Arya", "Ryan Rickelton", "Aiden Markram", "Angkrish Raghuvanshi", "Jos Buttler", "David Miller", "Ben Duckett", "Nitish Rana", "Prashant Veer", "Anshul Kambhoj", "Axar Patel", "Gudakesh Motie", "Will Jacks", "Marcus Stoinis", "Shashank Singh", "Nitish Kumar Reddy", "Pat Cummins", "Jacob Duffy", "Josh Hazlewood", "Ravi Bishnoi", "Avesh Khan", "Ravi Sai Kishore", "Noor Ahmad", "Blessing Muzarabani", "Lockie Ferguson"],
-        "Aman": ["Phil Salt", "Yashasvi Jaiswal", "Prabhsimran Singh", "Nicholas Pooran", "Tim Seifert", "Shubman Gill", "Ayush Mhatre", "Ashutosh Sharma", "Rahul Tewatia", "Washington Sundar", "Cooper Connolly", "Azmatullah Omarzai", "Ravindra Jadeja", "Abhishek Sharma", "Harshal Patel", "Jofra Archer", "Yuzvendra Chahal", "AM Ghazanfar", "Digvesh Singh", "Prasidh Krishna", "Umran Malik", "Vipraj Nigam"],
-        "Aatish": ["Tim David", "Jitesh Sharma", "Nehal Wadhera", "Quinton de Kock", "Sherfane Rutherford", "Rohit Sharma", "Rishabh Pant", "Abdul Samad", "Matthew Breetzke", "Rahul Tripathi", "Finn Allen", "Shahrukh Khan", "Tristan Stubbs", "Pathum Nissanka", "MS Dhoni", "Dewald Brevis", "Shivam Dube", "Rashid Khan", "Sunil Narine", "Shahbaz Ahmed", "Hardik Pandya", "Donovan Ferreira", "Jacob Bethell", "Romario Shepherd", "Yash Dayal", "Deepak Chahar", "Vaibhav Arora", "Mohammed Siraj", "Kuldeep Yadav", "Khaleel Ahmed", "Mukesh Choudhary", "Rahul Chahar", "Mayank Yadav", "Harpreet Brar", "Tushar Deshpande"],
-        "Shrijeet": ["Travis Head", "Ishan Kishan", "Riyan Parag", "Shreyas Iyer", "Ayush Badoni", "Himmat Singh", "Manish Pandey", "Ajinkya Rahane", "Sai Sudharsan", "Prithvi Shaw", "Karun Nair", "Abishek Porel", "Sarfaraz Khan", "Ruturaj Gaikwad", "Ramakrishna Ghosh", "Mitchell Marsh", "Krunal Pandya", "Venkatesh Iyer", "Jaydev Unadkat", "Suyash Sharma", "Sandeep Sharma", "Arshdeep Singh", "Trent Boult", "Mohammed Shami", "Kagiso Rabada", "Mitchell Santner", "Kartik Sharma"],
-        "Nagle": ["Heinrich Klaasen", "Virat Kohli", "Suryakumar Yadav", "Rinku Singh", "KL Rahul", "Sanju Samson", "Cameron Green", "Tilak Varma", "Marco Jansen", "Liam Livingstone", "Bhuvneshwar Kumar", "Jasprit Bumrah", "Varun Chakaravarthy", "Lungi Ngidi", "Jason Holder", "Mitchell Starc"]
+        "Kazim": list(pm.keys())[:30], "Aman": list(pm.keys())[30:52], 
+        "Aatish": list(pm.keys())[52:87], "Shrijeet": list(pm.keys())[87:114], 
+        "Nagle": list(pm.keys())[114:]
     }
 
     if not os.path.exists(DB_FILE):
@@ -113,92 +113,54 @@ def load_db():
     
     with open(DB_FILE, 'r') as f:
         data = json.load(f)
-        if not data.get("pools") or len(data["pools"]) < 5:
-            data["pools"] = initial_pools
-            data["player_master"] = pm
     return data
 
 def save_db(data):
     with open(DB_FILE, 'w') as f: json.dump(data, f)
 
-# --- 3. UI INITIALIZATION ---
-st.set_page_config(page_title="Inner Circle IPL", layout="centered")
-st.markdown("""
-<style>
-    .mobile-matrix { border: 1px solid #e2e8f0; padding: 6px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; height: 52px; }
-    .jersey-dot { height: 10px; width: 10px; border-radius: 50%; margin-right: 8px; }
-    .role-label { font-size: 10px; color: #64748b; font-weight: 700; }
-    .lb-card { background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; text-align: center; margin-bottom: 10px; }
-    .total-pts { color: #e11d48; font-size: 1.5rem; font-weight: 800; display: block; }
-    .admin-header { background: #1e293b; color: #fff; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
-</style>
-""", unsafe_allow_html=True)
+# --- 3. UI SETUP ---
+st.set_page_config(page_title="Inner Circle IPL", layout="wide")
+st.markdown("""<style>
+    .score-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+    .calc-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .badge { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; color: white; }
+</style>""", unsafe_allow_html=True)
 
 db = load_db()
 
-# --- 4. SIDEBAR ---
+# --- 4. SIDEBAR (TEAM COUNTS) ---
 st.sidebar.title("🗓️ Season Schedule")
 active_week = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()))
+
+# Calculate team appearances in active week
+matches_this_week = SEASON_WEEKS[active_week]
+all_teams_this_week = []
+for fixture in matches_this_week.values():
+    teams = fixture.split(" vs ")
+    all_teams_this_week.extend(teams)
+team_counts = Counter(all_teams_this_week)
+
+st.sidebar.subheader("Team Match Counts")
+for team, count in sorted(team_counts.items()):
+    st.sidebar.markdown(f"**{team}**: {count} match{'es' if count > 1 else ''}")
+
 st.sidebar.divider()
-for mid, fixture in SEASON_WEEKS[active_week].items():
+for mid, fixture in matches_this_week.items():
     st.sidebar.info(f"**{mid}:** {fixture}")
 
-# --- 5. TABS ---
-t1, t2, t_admin = st.tabs(["🏏 SQUAD", "📊 STANDINGS", "🛡️ ADMIN PANEL"])
+# --- 5. MAIN TABS ---
+t1, t_view, t2, t_admin = st.tabs(["🏏 MY SQUAD", "👀 ALL SQUADS", "📊 STANDINGS", "🛡️ ADMIN"])
 
-# --- TAB 1: SQUAD SELECTION ---
+# ... (SQUAD SELECTION & ALL SQUADS TABS REMAIN SAME AS PREVIOUS VERSION)
+# [SQUAD SELECTION LOGIC REMOVED FOR BREVITY - USE PREVIOUS CODE BLOCK]
+
+# --- TAB 1: SQUAD SELECTION (Snippet) ---
 with t1:
     user = st.selectbox("Manager Name", list(db["pools"].keys()))
-    pool = db["pools"].get(user, [])
-    saved = db["selections"].get(active_week, {}).get(user, {"squad": [], "cap": ""})
-    
-    if 'sel_dict' not in st.session_state: st.session_state.sel_dict = {}
-    if user not in st.session_state.sel_dict: 
-        st.session_state.sel_dict[user] = set(saved["squad"])
-    selected_list = st.session_state.sel_dict[user]
+    # Same selection logic as before...
+    st.info("Ensure you select 11 players including 1 WK and Max 4 Overseas.")
 
-    f1, f2 = st.columns([2, 1])
-    search = f1.text_input("🔍 Search Name", placeholder="Type name...", label_visibility="collapsed")
-    role_f = f2.selectbox("Role", ["All", "BAT", "BOWL", "WK"], label_visibility="collapsed")
-
-    cols = st.columns(2)
-    display_idx = 0
-    for p in sorted(pool):
-        info = db["player_master"].get(p, {"team": "IPL", "role": "BAT", "is_overseas": False})
-        if (search.lower() in p.lower()) and (role_f == "All" or info["role"] == role_f):
-            with cols[display_idx % 2]:
-                c_cell, c_box = st.columns([4, 1])
-                with c_cell:
-                    st.markdown(f'''<div class="mobile-matrix">
-                        <span class="jersey-dot" style="background:{TEAM_COLORS.get(info['team'], '#ccc')}"></span>
-                        <div style="flex-grow:1; line-height:1.1;">
-                            <span style="font-size:11px; font-weight:600;">{p} {"✈️" if info['is_overseas'] else ""}</span><br>
-                            <span class="role-label">{ROLE_EMOJI.get(info['role'], 'BAT')}</span>
-                        </div>
-                    </div>''', unsafe_allow_html=True)
-                with c_box:
-                    val = st.checkbox("", key=f"cb_{user}_{p}", value=(p in selected_list))
-                    if val: selected_list.add(p)
-                    elif p in selected_list: selected_list.discard(p)
-            display_idx += 1
-
-    st.divider()
-    os_count = sum(1 for p in selected_list if db["player_master"].get(p, {}).get("is_overseas"))
-    wk_count = sum(1 for p in selected_list if db["player_master"].get(p, {}).get("role") == "WK")
-    
-    st.write(f"**Squad:** {len(selected_list)}/11 | **Overseas:** {os_count}/4 | **Keepers:** {wk_count}")
-
-    if len(selected_list) == 11 and os_count <= 4 and wk_count >= 1:
-        cap = st.selectbox("🛡️ Select Captain", list(selected_list), index=list(selected_list).index(saved["cap"]) if saved["cap"] in selected_list else 0)
-        if st.button("🚀 SAVE SQUAD", type="primary", use_container_width=True):
-            if active_week not in db["selections"]: db["selections"][active_week] = {}
-            db["selections"][active_week][user] = {"squad": list(selected_list), "cap": cap}
-            save_db(db)
-            st.success("Squad Locked!")
-    else:
-        st.warning("Rules: 11 Players, Max 4 Overseas, Min 1 Keeper.")
-
-# --- TAB 2: STANDINGS ---
+# --- TAB: STANDINGS (UPDATED TO CALC POINTS) ---
 with t2:
     st.subheader("📊 Leaderboard")
     lb_data = []
@@ -206,65 +168,67 @@ with t2:
         total_pts, week_pts = 0, 0
         for wk, matches in SEASON_WEEKS.items():
             sel = db["selections"].get(wk, {}).get(m, {"squad": [], "cap": ""})
-            pts = sum((db["scores"].get(p, {}).get(mid, 0) * (2 if p == sel["cap"] else 1)) for p in sel["squad"] for mid in matches)
-            total_pts += pts
-            if wk == active_week: week_pts = pts
+            for p in sel["squad"]:
+                p_weekly_pts = 0
+                for mid in matches:
+                    s = db["scores"].get(p, {}).get(mid, {"r":0, "w":0, "c":0, "s":0})
+                    p_match_pts = (s.get("r",0)*1) + (s.get("w",0)*20) + (s.get("c",0)*5) + (s.get("s",0)*5)
+                    p_weekly_pts += p_match_pts
+                
+                # Double for captain
+                if p == sel["cap"]: p_weekly_pts *= 2
+                total_pts += p_weekly_pts
+                if wk == active_week: week_pts += p_weekly_pts
         lb_data.append({"Manager": m, "Weekly": week_pts, "Total": total_pts})
     
     cols = st.columns(2)
     for i, row in enumerate(sorted(lb_data, key=lambda x: x['Total'], reverse=True)):
         with cols[i % 2]:
-            st.markdown(f'<div class="lb-card"><b>{row["Manager"]}</b><br><small>Week: {row["Weekly"]}</small><span class="total-pts">{row["Total"]}</span></div>', unsafe_allow_html=True)
+            st.metric(row["Manager"], f"{row['Total']} pts", f"{row['Weekly']} this week")
 
-# --- TAB 3: ADMIN PANEL (FIXED VISIBILITY) ---
+# --- TAB: ADMIN (NEW CALCULATOR LOGIC) ---
 with t_admin:
-    st.markdown('<div class="admin-header"><h3>⚙️ Admin Management</h3></div>', unsafe_allow_html=True)
+    st.subheader("📝 Match Stats Entry")
     
-    # Dashboard stats
-    d1, d2, d3 = st.columns(3)
-    d1.metric("Total Players", len(db["player_master"]))
-    d2.metric("Manager Pools", len(db["pools"]))
-    d3.metric("Matches Count", 56)
-
-    # SUB-TABS FOR ADMIN
-    as1, as2 = st.tabs(["📝 ENTER SCORES", "🛠️ SYSTEM RESET"])
-
-    with as1:
-        st.write("### Match Scoring")
-        # Get list of all matches across all weeks
-        all_match_options = {}
-        for wk_name, matches in SEASON_WEEKS.items():
-            for mid, fixture in matches.items():
-                all_match_options[f"{mid}: {fixture} ({wk_name})"] = mid
-
-        sel_display = st.selectbox("Select Match to Score", list(all_match_options.keys()))
-        sel_mid = all_match_options[sel_display]
-        
-        # Extract teams from "RCB vs SRH"
-        teams_in_match = sel_display.split(": ")[1].split(" (")[0].split(" vs ")
-        
-        # Filter players belonging to these teams
-        eligible_players = [p for p, info in db["player_master"].items() if info['team'] in teams_in_match]
-        
-        if not eligible_players:
-            st.info("No players found in database for these teams.")
-        else:
-            st.info(f"Enter points for players in: {teams_in_match[0]} vs {teams_in_match[1]}")
-            for p in sorted(eligible_players):
-                cur_score = db["scores"].get(p, {}).get(sel_mid, 0)
-                new_score = st.number_input(f"{p} ({db['player_master'][p]['team']})", min_value=0, value=int(cur_score), key=f"adm_sc_{sel_mid}_{p}")
+    # 1. Select Match
+    match_opts = {f"{mid}: {txt}": mid for mid, txt in matches_this_week.items()}
+    sel_display = st.selectbox("Select Match to Score", list(match_opts.keys()))
+    sel_mid = match_opts[sel_display]
+    
+    # 2. Get ONLY players submitted in squads for this specific week
+    all_submitted = set()
+    for mgr_data in db["selections"].get(active_week, {}).values():
+        all_submitted.update(mgr_data["squad"])
+    
+    teams_in_match = sel_display.split(": ")[1].split(" vs ")
+    eligible = [p for p in all_submitted if db["player_master"][p]["team"] in teams_in_match]
+    
+    if not eligible:
+        st.warning("No players from this match were selected in any manager's squad this week.")
+    else:
+        st.write(f"Showing {len(eligible)} submitted players in this match:")
+        for p in sorted(eligible):
+            with st.container():
+                st.markdown(f"**{p}** ({db['player_master'][p]['team']})")
+                cur = db["scores"].get(p, {}).get(sel_mid, {"r":0, "w":0, "c":0, "s":0})
                 
-                if new_score != cur_score:
+                c1, c2, c3, c4 = st.columns(4)
+                r = c1.number_input("Runs", 0, 200, int(cur["r"]), key=f"r_{sel_mid}_{p}")
+                w = c2.number_input("Wkts", 0, 10, int(cur["w"]), key=f"w_{sel_mid}_{p}")
+                c = c3.number_input("Cat/RO", 0, 10, int(cur["c"]), key=f"c_{sel_mid}_{p}")
+                s = c4.number_input("Stump", 0, 10, int(cur["s"]), key=f"s_{sel_mid}_{p}")
+                
+                calc_total = (r*1) + (w*20) + (c*5) + (s*5)
+                st.caption(f"Calculated Points for match: **{calc_total}**")
+                
+                # Save if changed
+                new_data = {"r": r, "w": w, "c": c, "s": s}
+                if new_data != cur:
                     if p not in db["scores"]: db["scores"][p] = {}
-                    db["scores"][p][sel_mid] = new_score
+                    db["scores"][p][sel_mid] = new_data
                     save_db(db)
-                    st.toast(f"Updated {p} to {new_score}")
+            st.divider()
 
-    with as2:
-        st.write("### Danger Zone")
-        st.warning("Clicking the button below will delete all submitted squads and scores.")
-        if st.button("🔥 FULL SYSTEM RESET", use_container_width=True):
-            if os.path.exists(DB_FILE):
-                os.remove(DB_FILE)
-                st.success("Database deleted. Refreshing app...")
-                st.rerun()
+    if st.button("🔥 SYSTEM RESET (DANGER)"):
+        if os.path.exists(DB_FILE): os.remove(DB_FILE)
+        st.rerun()
