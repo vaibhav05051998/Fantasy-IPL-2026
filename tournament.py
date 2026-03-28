@@ -116,7 +116,7 @@ def load_db():
         "Varun Chakaravarthy":  {"team": "KKR", "role": "BOWL", "is_overseas": False},
         "Rinku Singh":          {"team": "KKR", "role": "BAT",  "is_overseas": False},
         "Cameron Green":        {"team": "KKR", "role": "BOWL", "is_overseas": True},
-        "Angkrish Raghuvanshi": {"team": "KKR", "role": "BAT",  "is_overseas": False},
+        "Angkrish Raghuvanshi": {"team": "KKR", "role": "WK",  "is_overseas": False},
         "Finn Allen":           {"team": "KKR", "role": "WK",   "is_overseas": True},
         "Tim Seifert":          {"team": "KKR", "role": "WK",   "is_overseas": True},
         "Umran Malik":          {"team": "KKR", "role": "BOWL", "is_overseas": False},
