@@ -500,7 +500,19 @@ st.markdown("""
   .scoring-rule-box strong { color: #ffd700; }
   .mom-badge { background: linear-gradient(135deg, #ff6b35, #ffd700); color: #1a2035; font-family: 'Bebas Neue', sans-serif; font-size: 11px; padding: 2px 8px; border-radius: 4px; letter-spacing: 1px; }
   .stSelectbox label, .stTextInput label, .stNumberInput label, .stCheckbox label { color: #eef2ff !important; font-family: 'Rajdhani', sans-serif !important; font-weight: 700; font-size: 14px; }
-  .stSelectbox > div > div, .stTextInput > div > div > input { background: rgba(255,255,255,0.12) !important; border: 1px solid rgba(255,255,255,0.28) !important; color: #ffffff !important; border-radius: 8px !important; font-family: 'Roboto Condensed', sans-serif !important; }
+  .stSelectbox > div > div, .stTextInput > div > div > input[type="number"] {
+    background: #1e2d48 !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255,215,0,0.40) !important;
+    border-radius: 6px !important;
+    caret-color: #ffd700 !important;
+  }
+  input[type="number"]:focus {
+    background: #243358 !important;
+    border-color: #ffd700 !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px rgba(255,215,0,0.20) !important;
+  }; font-family: 'Roboto Condensed', sans-serif !important; }
   .stButton > button { font-family: 'Bebas Neue', sans-serif !important; font-size: 1.2rem !important; letter-spacing: 3px !important; border-radius: 8px !important; border: none !important; background: linear-gradient(135deg, #ffd700 0%, #ff8c00 50%, #d11d26 100%) !important; color: white !important; padding: 10px 24px !important; transition: opacity 0.2s, transform 0.1s !important; width: 100%; }
   .stButton > button:hover { opacity: 0.9 !important; transform: translateY(-1px) !important; }
   .stAlert { border-radius: 8px !important; font-family: 'Rajdhani', sans-serif !important; }
