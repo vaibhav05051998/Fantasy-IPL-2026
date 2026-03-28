@@ -238,12 +238,8 @@ def load_db():
         ],
     }
     initial_pools = excel_pools
-    if not os.path.exists(DB_FILE):
-        return {"selections": {}, "scores": {}, "pools": excel_pools, "player_master": pm}
-    with open(DB_FILE, 'r') as f:
-        db = json.load(f)
-    db['player_master'] = pm
-    return db
+    if not os.path.exists(DB_FILE): return {"selections": {}, "scores": {}, "pools": excel_pools, "player_master": pm}
+    with open(DB_FILE, 'r') as f: return json.load(f)
 
 def save_db(data):
     with open(DB_FILE, 'w') as f: json.dump(data, f)
@@ -499,25 +495,64 @@ st.markdown("""
   .scoring-rule-box { background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-family: 'Rajdhani', sans-serif; font-size: 13px; color: #e8f0ff; }
   .scoring-rule-box strong { color: #ffd700; }
   .mom-badge { background: linear-gradient(135deg, #ff6b35, #ffd700); color: #1a2035; font-family: 'Bebas Neue', sans-serif; font-size: 11px; padding: 2px 8px; border-radius: 4px; letter-spacing: 1px; }
+  /* ── All labels ── */
   .stSelectbox label, .stTextInput label, .stNumberInput label, .stCheckbox label { color: #eef2ff !important; font-family: 'Rajdhani', sans-serif !important; font-weight: 700; font-size: 14px; }
-  .stSelectbox > div > div, .stTextInput > div > div > input[type="number"] {
-    background: #1e2d48 !important;
+  [data-testid="stNumberInput"] label { color: #eef2ff !important; font-family: 'Bebas Neue', sans-serif !important; font-size: 0.78rem !important; letter-spacing: 1.5px !important; }
+  /* ── Number inputs — solid dark bg so text always visible ── */
+  input[type="number"] {
+    background: #1a2740 !important;
     color: #ffffff !important;
-    border: 1px solid rgba(255,215,0,0.40) !important;
+    border: 1px solid rgba(255,215,0,0.45) !important;
     border-radius: 6px !important;
     caret-color: #ffd700 !important;
+    -webkit-text-fill-color: #ffffff !important;
   }
   input[type="number"]:focus {
-    background: #243358 !important;
+    background: #1e2e4a !important;
     border-color: #ffd700 !important;
-    outline: none !important;
     box-shadow: 0 0 0 2px rgba(255,215,0,0.20) !important;
-  }; font-family: 'Roboto Condensed', sans-serif !important; }
+    outline: none !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+  /* Streamlit wraps number inputs — target those wrappers too */
+  [data-testid="stNumberInput"] > div > div {
+    background: #1a2740 !important;
+    border: 1px solid rgba(255,215,0,0.45) !important;
+    border-radius: 6px !important;
+  }
+  [data-testid="stNumberInput"] > div > div > input {
+    background: #1a2740 !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+  }
+  /* ── Text inputs ── */
+  .stTextInput > div > div > input {
+    background: #1a2740 !important;
+    border: 1px solid rgba(255,215,0,0.45) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-radius: 8px !important;
+    font-family: 'Roboto Condensed', sans-serif !important;
+  }
+  .stTextInput > div > div > input:focus {
+    border-color: #ffd700 !important;
+    box-shadow: 0 0 0 2px rgba(255,215,0,0.20) !important;
+  }
+  /* ── Select boxes ── */
+  .stSelectbox > div > div {
+    background: #1a2740 !important;
+    border: 1px solid rgba(255,215,0,0.45) !important;
+    color: #ffffff !important;
+    border-radius: 8px !important;
+    font-family: 'Roboto Condensed', sans-serif !important;
+  }
+  /* Dropdown options */
+  [data-baseweb="select"] [data-testid="stMarkdownContainer"],
+  [data-baseweb="popover"] { background: #1a2740 !important; }
+  /* ── Buttons ── */
   .stButton > button { font-family: 'Bebas Neue', sans-serif !important; font-size: 1.2rem !important; letter-spacing: 3px !important; border-radius: 8px !important; border: none !important; background: linear-gradient(135deg, #ffd700 0%, #ff8c00 50%, #d11d26 100%) !important; color: white !important; padding: 10px 24px !important; transition: opacity 0.2s, transform 0.1s !important; width: 100%; }
   .stButton > button:hover { opacity: 0.9 !important; transform: translateY(-1px) !important; }
   .stAlert { border-radius: 8px !important; font-family: 'Rajdhani', sans-serif !important; }
-  input[type="number"] { background: rgba(255,255,255,0.12) !important; color: #ffffff !important; border: 1px solid rgba(255,255,255,0.28) !important; border-radius: 6px !important; }
-  [data-testid="stNumberInput"] label { color: #eef2ff !important; font-family: 'Bebas Neue', sans-serif !important; font-size: 0.78rem !important; letter-spacing: 1.5px !important; }
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: #2a3550; }
   ::-webkit-scrollbar-thumb { background: rgba(255,215,0,0.35); border-radius: 3px; }
@@ -641,15 +676,15 @@ with t1:
     sq_cl = "#ffd700" if len(final_squad)==11 else "#ff6b6b"
     os_cl = "#ffd700" if os_c2<=4 else "#ff6b6b"
     wk_cl = "#ffd700" if wk_c2>=1 else "#ff6b6b"
-    bw_cl = "#ffd700" if bw_c2>=3 else "#ff6b6b"
+    bw_cl = "#ffd700" if bw_c2>=4 else "#ff6b6b"
     st.markdown(f'''<div class="squad-status">
       <div class="stat-pill"><span class="stat-label">SQUAD</span><span class="stat-value" style="color:{sq_cl};">{len(final_squad)}</span><span class="stat-max">/11</span></div>
       <div class="stat-pill"><span class="stat-label">✈️ OVERSEAS</span><span class="stat-value" style="color:{os_cl};">{os_c2}</span><span class="stat-max">/4 max</span></div>
       <div class="stat-pill"><span class="stat-label">🧤 KEEPERS</span><span class="stat-value" style="color:{wk_cl};">{wk_c2}</span><span class="stat-max">min 1</span></div>
-      <div class="stat-pill"><span class="stat-label">🎳 BOWLERS</span><span class="stat-value" style="color:{bw_cl};">{bw_c2}</span><span class="stat-max">/3 min</span></div>
+      <div class="stat-pill"><span class="stat-label">🎳 BOWLERS</span><span class="stat-value" style="color:{bw_cl};">{bw_c2}</span><span class="stat-max">/4 min</span></div>
     </div>''', unsafe_allow_html=True)
 
-    if len(final_squad)==11 and os_c2<=4 and wk_c2>=1 and bw_c2>=3:
+    if len(final_squad)==11 and os_c2<=4 and wk_c2>=1 and bw_c2>=4:
         cap = st.selectbox("🛡️ Select Captain (2× points)", final_squad,
                            index=(final_squad.index(saved["cap"]) if saved["cap"] in final_squad else 0),
                            disabled=is_locked)
@@ -658,7 +693,7 @@ with t1:
             db["selections"][active_week_name][user] = {"squad": final_squad, "cap": cap}
             save_db(db); st.success("✅ Squad saved! Good luck this week!")
     else:
-        st.warning("⚠️ Complete your squad: exactly 11 players | max 4 overseas | min 1 keeper | min 3 bowlers")
+        st.warning("⚠️ Complete your squad: exactly 11 players | max 4 overseas | min 1 keeper | min 4 bowlers")
 
 with t_view:
     st.markdown('<div class="section-header">ALL MANAGERS\' SQUADS</div>', unsafe_allow_html=True)
@@ -669,17 +704,11 @@ with t_view:
             st.markdown(f'<div class="squad-mgr-title">⚡ {mgr}</div>', unsafe_allow_html=True)
             if s_data:
                 st.markdown('<div class="squad-view-box">', unsafe_allow_html=True)
-                def squad_sort_key(p):
-                    if p == s_data["cap"]: return 0
-                    role = db["player_master"].get(p, {}).get("role", "BAT")
-                    return {"BAT": 1, "WK": 2, "BOWL": 3}.get(role, 1)
-
-                for player in sorted(s_data["squad"], key=squad_sort_key):
-                    info    = db["player_master"].get(player, {})
+                for player in sorted(s_data["squad"]):
+                    info = db["player_master"].get(player, {})
                     cap_tag = '<span class="cap-badge">CAP</span>' if player == s_data["cap"] else ""
                     tc = TEAM_COLORS.get(info.get("team",""), "#888")
-                    role_icon = {"BAT":"🏏","WK":"🧤","BOWL":"🎳"}.get(info.get("role",""),"🏏")
-                    st.markdown(f'<div class="squad-player-row"><span><span style="color:{tc};font-size:9px;">●</span> {role_icon} {player} <span style="color:rgba(210,225,255,0.55);font-size:10px;">({info.get("team","")})</span></span>{cap_tag}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="squad-player-row"><span><span style="color:{tc};font-size:9px;">●</span> {player} <span style="color:rgba(210,225,255,0.55);font-size:10px;">({info.get("team","")})</span></span>{cap_tag}</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.markdown('<div style="text-align:center;padding:20px;color:rgba(200,220,255,0.45);font-family:\'Rajdhani\',sans-serif;border:1px dashed rgba(255,255,255,0.15);border-radius:8px;font-size:13px;">No squad selected</div>', unsafe_allow_html=True)
