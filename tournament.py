@@ -657,11 +657,17 @@ with t_view:
             st.markdown(f'<div class="squad-mgr-title">⚡ {mgr}</div>', unsafe_allow_html=True)
             if s_data:
                 st.markdown('<div class="squad-view-box">', unsafe_allow_html=True)
-                for player in sorted(s_data["squad"]):
-                    info = db["player_master"].get(player, {})
+                def squad_sort_key(p):
+                    if p == s_data["cap"]: return 0
+                    role = db["player_master"].get(p, {}).get("role", "BAT")
+                    return {"BAT": 1, "WK": 2, "BOWL": 3}.get(role, 1)
+
+                for player in sorted(s_data["squad"], key=squad_sort_key):
+                    info    = db["player_master"].get(player, {})
                     cap_tag = '<span class="cap-badge">CAP</span>' if player == s_data["cap"] else ""
                     tc = TEAM_COLORS.get(info.get("team",""), "#888")
-                    st.markdown(f'<div class="squad-player-row"><span><span style="color:{tc};font-size:9px;">●</span> {player} <span style="color:rgba(210,225,255,0.55);font-size:10px;">({info.get("team","")})</span></span>{cap_tag}</div>', unsafe_allow_html=True)
+                    role_icon = {"BAT":"🏏","WK":"🧤","BOWL":"🎳"}.get(info.get("role",""),"🏏")
+                    st.markdown(f'<div class="squad-player-row"><span><span style="color:{tc};font-size:9px;">●</span> {role_icon} {player} <span style="color:rgba(210,225,255,0.55);font-size:10px;">({info.get("team","")})</span></span>{cap_tag}</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.markdown('<div style="text-align:center;padding:20px;color:rgba(200,220,255,0.45);font-family:\'Rajdhani\',sans-serif;border:1px dashed rgba(255,255,255,0.15);border-radius:8px;font-size:13px;">No squad selected</div>', unsafe_allow_html=True)
