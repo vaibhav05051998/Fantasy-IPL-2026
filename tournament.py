@@ -17,16 +17,16 @@ TEAM_COLORS = {
 }
 ROLE_EMOJI = {'BAT': '🏏', 'BOWL': '🔴', 'WK': '🧤'}
 
-# V1 SCHEDULE
+# V1 SCHEDULE — lock times stored in UTC (IST - 5:30). 7:00pm IST = 13:30 UTC
 SEASON_WEEKS = {
-    "Week 1 (Mar 28 - Apr 03)": {"lock": "2026-03-28 19:00:00", "matches": {"M01": "RCB vs SRH", "M02": "MI vs KKR", "M03": "RR vs CSK", "M04": "PBKS vs GT", "M05": "LSG vs DC", "M06": "KKR vs SRH", "M07": "CSK vs PBKS"}},
-    "Week 2 (Apr 04 - Apr 10)": {"lock": "2026-04-04 19:00:00", "matches": {"M08": "DC vs MI", "M09": "GT vs RR", "M10": "SRH vs LSG", "M11": "RCB vs CSK", "M12": "KKR vs PBKS", "M13": "RR vs MI", "M14": "DC vs GT"}},
-    "Week 3 (Apr 11 - Apr 17)": {"lock": "2026-04-11 19:00:00", "matches": {"M15": "SRH vs RCB", "M16": "KKR vs MI", "M17": "CSK vs RR", "M18": "GT vs PBKS", "M19": "DC vs LSG", "M20": "SRH vs KKR", "M21": "PBKS vs CSK"}},
-    "Week 4 (Apr 18 - Apr 24)": {"lock": "2026-04-18 19:00:00", "matches": {"M22": "MI vs DC", "M23": "RR vs GT", "M24": "LSG vs SRH", "M25": "CSK vs RCB", "M26": "PBKS vs KKR", "M27": "MI vs RR", "M28": "GT vs DC"}},
-    "Week 5 (Apr 25 - May 01)": {"lock": "2026-04-25 19:00:00", "matches": {"M29": "LSG vs KKR", "M30": "RCB vs GT", "M31": "SRH vs RR", "M32": "DC vs CSK", "M33": "MI vs PBKS", "M34": "KKR vs RCB", "M35": "RR vs LSG"}},
-    "Week 6 (May 02 - May 08)": {"lock": "2026-05-02 19:00:00", "matches": {"M36": "GT vs SRH", "M37": "CSK vs MI", "M38": "PBKS vs DC", "M39": "RCB vs LSG", "M40": "RR vs KKR", "M41": "SRH vs PBKS", "M42": "GT vs CSK"}},
-    "Week 7 (May 09 - May 15)": {"lock": "2026-05-09 19:00:00", "matches": {"M43": "DC vs RCB", "M44": "LSG vs MI", "M45": "KKR vs GT", "M46": "CSK vs SRH", "M47": "PBKS vs RR", "M48": "MI vs LSG", "M49": "RCB vs DC"}},
-    "Week 8 (May 16 - May 22)": {"lock": "2026-05-16 19:00:00", "matches": {"M50": "GT vs KKR", "M51": "SRH vs CSK", "M52": "RR vs PBKS", "M53": "DC vs RR", "M54": "KKR vs PBKS", "M55": "LSG vs GT", "M56": "MI vs RCB"}},
+    "Week 1 (Mar 28 - Apr 03)": {"lock": "2026-03-28 13:30:00", "matches": {"M01": "RCB vs SRH", "M02": "MI vs KKR", "M03": "RR vs CSK", "M04": "PBKS vs GT", "M05": "LSG vs DC", "M06": "KKR vs SRH", "M07": "CSK vs PBKS"}},
+    "Week 2 (Apr 04 - Apr 10)": {"lock": "2026-04-04 13:30:00", "matches": {"M08": "DC vs MI", "M09": "GT vs RR", "M10": "SRH vs LSG", "M11": "RCB vs CSK", "M12": "KKR vs PBKS", "M13": "RR vs MI", "M14": "DC vs GT"}},
+    "Week 3 (Apr 11 - Apr 17)": {"lock": "2026-04-11 13:30:00", "matches": {"M15": "SRH vs RCB", "M16": "KKR vs MI", "M17": "CSK vs RR", "M18": "GT vs PBKS", "M19": "DC vs LSG", "M20": "SRH vs KKR", "M21": "PBKS vs CSK"}},
+    "Week 4 (Apr 18 - Apr 24)": {"lock": "2026-04-18 13:30:00", "matches": {"M22": "MI vs DC", "M23": "RR vs GT", "M24": "LSG vs SRH", "M25": "CSK vs RCB", "M26": "PBKS vs KKR", "M27": "MI vs RR", "M28": "GT vs DC"}},
+    "Week 5 (Apr 25 - May 01)": {"lock": "2026-04-25 13:30:00", "matches": {"M29": "LSG vs KKR", "M30": "RCB vs GT", "M31": "SRH vs RR", "M32": "DC vs CSK", "M33": "MI vs PBKS", "M34": "KKR vs RCB", "M35": "RR vs LSG"}},
+    "Week 6 (May 02 - May 08)": {"lock": "2026-05-02 13:30:00", "matches": {"M36": "GT vs SRH", "M37": "CSK vs MI", "M38": "PBKS vs DC", "M39": "RCB vs LSG", "M40": "RR vs KKR", "M41": "SRH vs PBKS", "M42": "GT vs CSK"}},
+    "Week 7 (May 09 - May 15)": {"lock": "2026-05-09 13:30:00", "matches": {"M43": "DC vs RCB", "M44": "LSG vs MI", "M45": "KKR vs GT", "M46": "CSK vs SRH", "M47": "PBKS vs RR", "M48": "MI vs LSG", "M49": "RCB vs DC"}},
+    "Week 8 (May 16 - May 22)": {"lock": "2026-05-16 13:30:00", "matches": {"M50": "GT vs KKR", "M51": "SRH vs CSK", "M52": "RR vs PBKS", "M53": "DC vs RR", "M54": "KKR vs PBKS", "M55": "LSG vs GT", "M56": "MI vs RCB"}},
 }
 
 def load_db():
@@ -603,14 +603,15 @@ def build_leaderboard(db, week_keys, active_week_name):
 st.sidebar.markdown('<div style="font-family:\'Bebas Neue\',sans-serif;font-size:1.4rem;letter-spacing:3px;color:#ffd700;margin-bottom:12px;text-align:center;">🗓️ Season Calendar</div>', unsafe_allow_html=True)
 active_week_name = st.sidebar.selectbox("Select Week", list(SEASON_WEEKS.keys()), label_visibility="collapsed")
 week_config  = SEASON_WEEKS[active_week_name]
-lock_time    = datetime.strptime(week_config["lock"], "%Y-%m-%d %H:%M:%S")
-is_locked    = datetime.now() > lock_time
-week_keys    = list(SEASON_WEEKS.keys())
+lock_time_utc = datetime.strptime(week_config["lock"], "%Y-%m-%d %H:%M:%S")
+lock_time_ist = lock_time_utc + __import__('datetime').timedelta(hours=5, minutes=30)
+is_locked     = datetime.utcnow() > lock_time_utc
+week_keys     = list(SEASON_WEEKS.keys())
 
 if is_locked:
-    st.sidebar.markdown(f'<span class="lock-status lock-closed">🔒 Locked — {lock_time.strftime("%I:%M %p, %b %d")}</span>', unsafe_allow_html=True)
+    st.sidebar.markdown(f'<span class="lock-status lock-closed">🔒 Locked — {lock_time_ist.strftime("%I:%M %p, %b %d")} IST</span>', unsafe_allow_html=True)
 else:
-    st.sidebar.markdown(f'<span class="lock-status lock-open">🔓 Open · Closes {lock_time.strftime("%I:%M %p, %b %d")}</span>', unsafe_allow_html=True)
+    st.sidebar.markdown(f'<span class="lock-status lock-open">🔓 Open · Closes {lock_time_ist.strftime("%I:%M %p, %b %d")} IST</span>', unsafe_allow_html=True)
 
 matches_this_week = week_config["matches"]
 st.sidebar.markdown('<div style="height:10px;"></div>', unsafe_allow_html=True)
