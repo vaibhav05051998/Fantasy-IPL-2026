@@ -238,8 +238,11 @@ def load_db():
         ],
     }
     initial_pools = excel_pools
-    if not os.path.exists(DB_FILE): return {"selections": {}, "scores": {}, "pools": excel_pools, "player_master": pm}
-    with open(DB_FILE, 'r') as f: return json.load(f)
+if not os.path.exists(DB_FILE): return {"selections": {}, "scores": {}, "pools": excel_pools, "player_master": pm}
+    with open(DB_FILE, 'r') as f: db = json.load(f)
+    # ── Always sync player_master from code (picks up any role/team edits) ──
+    db['player_master'] = pm
+    return db
 
 def save_db(data):
     with open(DB_FILE, 'w') as f: json.dump(data, f)
