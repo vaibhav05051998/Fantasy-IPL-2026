@@ -15,7 +15,7 @@ TEAM_COLORS = {
     'RR': '#ea1a85', 'KKR': '#3a225d', 'GT': '#1b2133', 'LSG': '#0057e2',
     'DC': '#0078bc', 'PBKS': '#dd1f2d', 'IPL': '#000080'
 }
-ROLE_EMOJI = {'BAT': '🏏', 'BOWL': '🎳', 'WK': '🧤'}
+ROLE_EMOJI = {'BAT': '🏏', 'BOWL': '🔴', 'WK': '🧤'}
 
 # V1 SCHEDULE
 SEASON_WEEKS = {
@@ -651,7 +651,7 @@ with t1:
         if not (team_f == "All" or info["team"] == team_f): continue
         if not (role_f == "All" or info["role"] == role_f): continue
         tc = TEAM_COLORS.get(info["team"], "#666")
-        ri = {"BAT":"🏏","BOWL":"🎳","WK":"🧤"}
+        ri = {"BAT":"🏏","BOWL":"🔴","WK":"🧤"}
         ot = " ✈️" if info["is_overseas"] else ""
         with cols[display_idx % 2]:
             cc, cb = st.columns([5,1])
@@ -676,15 +676,15 @@ with t1:
     sq_cl = "#ffd700" if len(final_squad)==11 else "#ff6b6b"
     os_cl = "#ffd700" if os_c2<=4 else "#ff6b6b"
     wk_cl = "#ffd700" if wk_c2>=1 else "#ff6b6b"
-    bw_cl = "#ffd700" if bw_c2>=4 else "#ff6b6b"
+    bw_cl = "#ffd700" if bw_c2>=3 else "#ff6b6b"
     st.markdown(f'''<div class="squad-status">
       <div class="stat-pill"><span class="stat-label">SQUAD</span><span class="stat-value" style="color:{sq_cl};">{len(final_squad)}</span><span class="stat-max">/11</span></div>
       <div class="stat-pill"><span class="stat-label">✈️ OVERSEAS</span><span class="stat-value" style="color:{os_cl};">{os_c2}</span><span class="stat-max">/4 max</span></div>
       <div class="stat-pill"><span class="stat-label">🧤 KEEPERS</span><span class="stat-value" style="color:{wk_cl};">{wk_c2}</span><span class="stat-max">min 1</span></div>
-      <div class="stat-pill"><span class="stat-label">🎳 BOWLERS</span><span class="stat-value" style="color:{bw_cl};">{bw_c2}</span><span class="stat-max">/4 min</span></div>
+      <div class="stat-pill"><span class="stat-label">🔴 BOWLERS</span><span class="stat-value" style="color:{bw_cl};">{bw_c2}</span><span class="stat-max">/3 min</span></div>
     </div>''', unsafe_allow_html=True)
 
-    if len(final_squad)==11 and os_c2<=4 and wk_c2>=1 and bw_c2>=4:
+    if len(final_squad)==11 and os_c2<=4 and wk_c2>=1 and bw_c2>=3:
         cap = st.selectbox("🛡️ Select Captain (2× points)", final_squad,
                            index=(final_squad.index(saved["cap"]) if saved["cap"] in final_squad else 0),
                            disabled=is_locked)
@@ -693,7 +693,7 @@ with t1:
             db["selections"][active_week_name][user] = {"squad": final_squad, "cap": cap}
             save_db(db); st.success("✅ Squad saved! Good luck this week!")
     else:
-        st.warning("⚠️ Complete your squad: exactly 11 players | max 4 overseas | min 1 keeper | min 4 bowlers")
+        st.warning("⚠️ Complete your squad: exactly 11 players | max 4 overseas | min 1 keeper | min 3 bowlers")
 
 with t_view:
     st.markdown('<div class="section-header">ALL MANAGERS\' SQUADS</div>', unsafe_allow_html=True)
@@ -704,11 +704,17 @@ with t_view:
             st.markdown(f'<div class="squad-mgr-title">⚡ {mgr}</div>', unsafe_allow_html=True)
             if s_data:
                 st.markdown('<div class="squad-view-box">', unsafe_allow_html=True)
-                for player in sorted(s_data["squad"]):
-                    info = db["player_master"].get(player, {})
-                    cap_tag = '<span class="cap-badge">CAP</span>' if player == s_data["cap"] else ""
-                    tc = TEAM_COLORS.get(info.get("team",""), "#888")
-                    st.markdown(f'<div class="squad-player-row"><span><span style="color:{tc};font-size:9px;">●</span> {player} <span style="color:rgba(210,225,255,0.55);font-size:10px;">({info.get("team","")})</span></span>{cap_tag}</div>', unsafe_allow_html=True)
+                def squad_sort_key(p):
+                    if p == s_data["cap"]: return 0
+                    role = db["player_master"].get(p, {}).get("role", "BAT")
+                    return {"BAT": 1, "WK": 2, "BOWL": 3}.get(role, 1)
+
+                for player in sorted(s_data["squad"], key=squad_sort_key):
+                    info     = db["player_master"].get(player, {})
+                    cap_tag  = '<span class="cap-badge">CAP</span>' if player == s_data["cap"] else ""
+                    tc       = TEAM_COLORS.get(info.get("team",""), "#888")
+                    role_icon = {"BAT":"🏏","WK":"🧤","BOWL":"🔴"}.get(info.get("role",""),"🏏")
+                    st.markdown(f'<div class="squad-player-row"><span><span style="color:{tc};font-size:9px;">●</span> {role_icon} {player} <span style="color:rgba(210,225,255,0.55);font-size:10px;">({info.get("team","")})</span></span>{cap_tag}</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
             else:
                 st.markdown('<div style="text-align:center;padding:20px;color:rgba(200,220,255,0.45);font-family:\'Rajdhani\',sans-serif;border:1px dashed rgba(255,255,255,0.15);border-radius:8px;font-size:13px;">No squad selected</div>', unsafe_allow_html=True)
@@ -868,7 +874,7 @@ with t_admin:
     hdr[0].markdown('<div style="font-family:\'Bebas Neue\',sans-serif;font-size:0.82rem;letter-spacing:2px;color:#ffd700;padding:4px 0 2px;">PLAYER</div>', unsafe_allow_html=True)
     for col, lbl, sub in [
         (hdr[1],"🏏 RUNS","1r=1pt | 50+=+5 | 100+=+10"),
-        (hdr[2],"🎳 WICKETS","1w=20pt | 3+=+5 | 5+=+10"),
+        (hdr[2],"🔴 WICKETS","1w=20pt | 3+=+5 | 5+=+10"),
         (hdr[3],"🤲 CATCH/RO","1=5pt | 0.5=2.5pt"),
         (hdr[4],"🧤 STUMPING","1 = 5 pts"),
         (hdr[5],"PTS","live"),
