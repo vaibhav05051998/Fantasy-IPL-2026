@@ -629,15 +629,15 @@ with t1:
     sq_cl = "#ffd700" if len(final_squad)==11 else "#ff6b6b"
     os_cl = "#ffd700" if os_c2<=4 else "#ff6b6b"
     wk_cl = "#ffd700" if wk_c2>=1 else "#ff6b6b"
-    bw_cl = "#ffd700" if bw_c2>=4 else "#ff6b6b"
+    bw_cl = "#ffd700" if bw_c2>=3 else "#ff6b6b"
     st.markdown(f'''<div class="squad-status">
       <div class="stat-pill"><span class="stat-label">SQUAD</span><span class="stat-value" style="color:{sq_cl};">{len(final_squad)}</span><span class="stat-max">/11</span></div>
       <div class="stat-pill"><span class="stat-label">✈️ OVERSEAS</span><span class="stat-value" style="color:{os_cl};">{os_c2}</span><span class="stat-max">/4 max</span></div>
       <div class="stat-pill"><span class="stat-label">🧤 KEEPERS</span><span class="stat-value" style="color:{wk_cl};">{wk_c2}</span><span class="stat-max">min 1</span></div>
-      <div class="stat-pill"><span class="stat-label">🎳 BOWLERS</span><span class="stat-value" style="color:{bw_cl};">{bw_c2}</span><span class="stat-max">/4 min</span></div>
+      <div class="stat-pill"><span class="stat-label">🎳 BOWLERS</span><span class="stat-value" style="color:{bw_cl};">{bw_c2}</span><span class="stat-max">/3 min</span></div>
     </div>''', unsafe_allow_html=True)
 
-    if len(final_squad)==11 and os_c2<=4 and wk_c2>=1 and bw_c2>=4:
+    if len(final_squad)==11 and os_c2<=4 and wk_c2>=1 and bw_c2>=3:
         cap = st.selectbox("🛡️ Select Captain (2× points)", final_squad,
                            index=(final_squad.index(saved["cap"]) if saved["cap"] in final_squad else 0),
                            disabled=is_locked)
@@ -646,7 +646,7 @@ with t1:
             db["selections"][active_week_name][user] = {"squad": final_squad, "cap": cap}
             save_db(db); st.success("✅ Squad saved! Good luck this week!")
     else:
-        st.warning("⚠️ Complete your squad: exactly 11 players | max 4 overseas | min 1 keeper | min 4 bowlers")
+        st.warning("⚠️ Complete your squad: exactly 11 players | max 4 overseas | min 1 keeper | min 3 bowlers")
 
 with t_view:
     st.markdown('<div class="section-header">ALL MANAGERS\' SQUADS</div>', unsafe_allow_html=True)
