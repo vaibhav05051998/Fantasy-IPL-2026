@@ -1128,12 +1128,100 @@ with t_restore:
         if existing_sel.get("squad"):
             st.markdown(f'<div style="font-size:12px;color:#a5d6a7;font-family:\'Rajdhani\',sans-serif;margin-bottom:6px;">ℹ️ {restore_mgr} already has a squad for {restore_week} — shown below. Override it if needed.</div>', unsafe_allow_html=True)
 
+        # ── PASTE TO DETECT ───────────────────────────────────────────────────
+        st.markdown("""<div style="background:rgba(0,120,255,0.10);border:1px solid rgba(100,180,255,0.30);
+            border-radius:8px;padding:10px 14px;margin:10px 0 8px;font-family:'Rajdhani',sans-serif;font-size:13px;color:#cce4ff;">
+            📋 <b>Paste squad list</b> — paste any text containing player names (WhatsApp message, notes, etc.)
+            and the app will auto-detect matching players from the pool.
+        </div>""", unsafe_allow_html=True)
+
+        paste_text = st.text_area(
+            "Paste player list here",
+            height=120,
+            key=f"paste_{restore_mgr}_{restore_week}",
+            placeholder="e.g.\n1. Virat Kohli (c)\n2. Rohit Sharma\nJasprit Bumrah\nMS Dhoni (wk)\n..."
+        )
+
+        detected_players = []
+        undetected_lines = []
+
+        if paste_text.strip():
+            # Split on newlines and common separators
+            import re as _re
+            raw_lines = _re.split(r"[\n,;|]+", paste_text)
+            pm_names  = list(db["player_master"].keys())
+
+            for raw in raw_lines:
+                # Strip numbering, bullets, role tags, brackets, emojis
+                cleaned = _re.sub(r"^\s*[\d\.\-\*\•]+\s*", "", raw)        # leading numbers/bullets
+                cleaned = _re.sub(r"\(c\)|\(wk\)|\(vc\)", "", cleaned, flags=_re.I)  # role tags
+                cleaned = _re.sub(r"\([^)]*\)", "", cleaned)                # anything in brackets
+                cleaned = _re.sub(r"[^\w\s\-\']", "", cleaned)             # non-word chars
+                cleaned = cleaned.strip()
+                if len(cleaned) < 3:
+                    continue
+
+                # Try exact match first
+                match = next((p for p in pm_names if p.lower() == cleaned.lower()), None)
+
+                # Try fuzzy match if no exact match
+                if not match:
+                    match = _best_match(cleaned, pm_names, threshold=0.60)
+
+                # Try matching last name only (e.g. "Kohli" → "Virat Kohli")
+                if not match:
+                    last_word = cleaned.split()[-1].lower()
+                    candidates = [p for p in pm_names if p.lower().split()[-1] == last_word]
+                    if len(candidates) == 1:
+                        match = candidates[0]
+
+                if match:
+                    if match not in detected_players:
+                        detected_players.append(match)
+                else:
+                    if cleaned:
+                        undetected_lines.append(cleaned)
+
+            # Show detection results
+            if detected_players:
+                st.markdown(f'<div style="color:#a5d6a7;font-family:\'Roboto Condensed\',sans-serif;font-size:13px;margin:6px 0 4px;">✅ Detected <b>{len(detected_players)}</b> players</div>', unsafe_allow_html=True)
+                for dp in detected_players:
+                    info = db["player_master"].get(dp, {})
+                    tc   = TEAM_COLORS.get(info.get("team",""), "#888")
+                    ri   = {"BAT":"🏏","WK":"🧤","BOWL":"🔴"}.get(info.get("role",""),"🏏")
+                    in_pool = "✓" if dp in r_pool else "⚠️ not in pool"
+                    in_pool_color = "#a5d6a7" if dp in r_pool else "#ffa726"
+                    st.markdown(
+                        f'<div style="display:flex;justify-content:space-between;align-items:center;'
+                        f'padding:3px 8px;border-radius:5px;margin-bottom:2px;background:rgba(255,255,255,0.06);">'
+                        f'<span><span style="color:{tc};font-size:9px;">●</span> {ri} <b style="color:#eef2ff;">{dp}</b> '
+                        f'<span style="color:rgba(210,225,255,0.55);font-size:10px;">({info.get("team","")})</span></span>'
+                        f'<span style="color:{in_pool_color};font-size:11px;font-family:\'Rajdhani\',sans-serif;">{in_pool}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True
+                    )
+
+            if undetected_lines:
+                st.markdown(f'<div style="color:#ffa726;font-size:11px;font-family:\'Rajdhani\',sans-serif;margin-top:4px;">⚠️ Could not match: {", ".join(undetected_lines)}</div>', unsafe_allow_html=True)
+
+            # Apply detected to multiselect default
+            if detected_players and st.button("⚡  USE DETECTED PLAYERS", key=f"use_detected_{restore_mgr}", use_container_width=False):
+                st.session_state[f"restore_squad_{restore_mgr}_{restore_week}"] = [p for p in detected_players if p in r_pool]
+                st.rerun()
+
+        st.markdown('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.10);margin:10px 0 8px;">', unsafe_allow_html=True)
+
+        # ── Squad multiselect — pre-filled from paste detection or existing ───
+        paste_default = st.session_state.get(
+            f"restore_squad_{restore_mgr}_{restore_week}",
+            [p for p in existing_sel.get("squad", []) if p in r_pool]
+        )
         # ── Squad multiselect ─────────────────────────────────────────────────
         r_squad = st.multiselect(
             f"Select 11 players for {restore_mgr}",
             options=sorted(r_pool),
-            default=[p for p in existing_sel.get("squad", []) if p in r_pool],
-            key="restore_squad"
+            default=[p for p in paste_default if p in r_pool],
+            key=f"restore_squad_{restore_mgr}_{restore_week}"
         )
 
         # ── Live validation metrics ───────────────────────────────────────────
@@ -1154,7 +1242,7 @@ with t_restore:
             "🛡️ Captain (2× points)",
             r_cap_options,
             index=(r_cap_options.index(r_cap_default) if r_cap_default in r_cap_options else 0),
-            key="restore_cap"
+            key=f"restore_cap_{restore_mgr}_{restore_week}"
         )
 
         # ── Show selected squad preview ───────────────────────────────────────
