@@ -29,13 +29,121 @@ SEASON_WEEKS = {
     "Week 8 (May 16 - May 22)": {"lock": "2026-05-16 13:30:00", "matches": {"M50": "GT vs KKR", "M51": "SRH vs CSK", "M52": "RR vs PBKS", "M53": "DC vs RR", "M54": "KKR vs PBKS", "M55": "LSG vs GT", "M56": "MI vs RCB"}},
 }
 
+# --- PERSISTENT STORAGE via GitHub Gist ---
+# Survives Streamlit Cloud restarts/sleep cycles.
+# Setup (one time):
+#   1. Go to github.com → Settings → Developer Settings → Personal Access Tokens → Tokens (classic)
+#   2. Generate token with "gist" scope only
+#   3. Create a new Secret Gist at gist.github.com with filename "tournament_db.json" and content "{}"
+#   4. Copy the Gist ID from the URL (32-char string after gist.github.com/username/)
+#   5. In Streamlit Cloud → App Settings → Secrets, add:
+#        GIST_TOKEN = "ghp_your_token_here"
+#        GIST_ID    = "your_gist_id_here"
+# If secrets are not set, falls back to local file (for local dev).
+
+DB_FILE      = 'tournament_db.json'          # local fallback
+GIST_TOKEN   = st.secrets.get("GIST_TOKEN", "")
+GIST_ID      = st.secrets.get("GIST_ID",    "")
+USE_GIST     = bool(GIST_TOKEN and GIST_ID)
+
+import requests as _req
+
+def _gist_read():
+    """Read DB from GitHub Gist. Returns parsed dict or None on failure."""
+    try:
+        r = _req.get(
+            f"https://api.github.com/gists/{GIST_ID}",
+            headers={
+                "Authorization": f"token {GIST_TOKEN}",
+                "Accept": "application/vnd.github.v3+json",
+            },
+            timeout=10
+        )
+        if r.status_code == 200:
+            raw = r.json()["files"]["tournament_db.json"]["content"]
+            return json.loads(raw)
+    except Exception:
+        pass
+    return None
+
+def _gist_write(data):
+    """Write DB to GitHub Gist. Returns True on success."""
+    try:
+        r = _req.patch(
+            f"https://api.github.com/gists/{GIST_ID}",
+            headers={
+                "Authorization": f"token {GIST_TOKEN}",
+                "Accept": "application/vnd.github.v3+json",
+            },
+            json={"files": {"tournament_db.json": {"content": json.dumps(data)}}},
+            timeout=10
+        )
+        return r.status_code == 200
+    except Exception:
+        return False
+
 def load_db():
-    # -----------------------------------------------------------------------
-    # PLAYER MASTER — IPL 2026 VERIFIED SQUADS
-    # Pools sourced directly from IPL_teams-1.xlsx (Mar 27 2026)
-    # Team assignments cross-checked: ESPNcricinfo, Wikipedia, Sky Sports,
-    # SportsTak, CREX injury/withdrawal tracker
-    # -----------------------------------------------------------------------
+    pm = _build_player_master()
+    excel_pools = _build_excel_pools()
+    empty = {"selections": {}, "scores": {}, "pools": excel_pools, "player_master": pm}
+
+    # ── Try Gist first ────────────────────────────────────────────────────────
+    if USE_GIST:
+        data = _gist_read()
+        if data:
+            data["player_master"] = pm   # always sync roles/teams from code
+            data.setdefault("selections", {})
+            data.setdefault("scores", {})
+            data.setdefault("pools", excel_pools)
+            return data
+        # Gist read failed — fall through to local file
+
+    # ── Local file fallback ───────────────────────────────────────────────────
+    if not os.path.exists(DB_FILE):
+        return empty
+    try:
+        with open(DB_FILE, 'r') as f:
+            content = f.read().strip()
+        if not content:
+            raise ValueError("Empty file")
+        data = json.loads(content)
+        data["player_master"] = pm
+        data.setdefault("selections", {})
+        data.setdefault("scores", {})
+        data.setdefault("pools", excel_pools)
+        return data
+    except Exception as e:
+        try:
+            import shutil, time
+            shutil.copy(DB_FILE, DB_FILE + f".bak_{int(time.time())}")
+        except Exception:
+            pass
+        st.error(f"⚠️ Local DB corrupted ({e}). Starting fresh.")
+        return empty
+
+def save_db(data):
+    """Save to Gist (persistent) AND local file (backup)."""
+    # ── Gist write ────────────────────────────────────────────────────────────
+    if USE_GIST:
+        ok = _gist_write(data)
+        if not ok:
+            st.warning("⚠️ Gist save failed — data saved locally only (may be lost on restart).")
+
+    # ── Local file write (always, as a local-dev fallback) ────────────────────
+    tmp = DB_FILE + ".tmp"
+    try:
+        with open(tmp, 'w') as f:
+            json.dump(data, f)
+        os.replace(tmp, DB_FILE)
+    except Exception:
+        try:
+            with open(DB_FILE, 'w') as f:
+                json.dump(data, f)
+        except Exception:
+            pass
+
+
+def _build_player_master():
     pm = {
         # ── RCB ──────────────────────────────────────────────────────────────
         "Rajat Patidar":        {"team": "RCB", "role": "BAT",  "is_overseas": False},
@@ -189,9 +297,11 @@ def load_db():
         # ── Unattached / not confirmed in any final 2026 squad ───────────────
         "Gudakesh Motie":       {"team": "IPL", "role": "BOWL", "is_overseas": True},
     }
+    return pm
 
-    # ── POOLS SOURCED DIRECTLY FROM IPL_teams-1.xlsx ─────────────────────────
-    excel_pools = {
+
+def _build_excel_pools():
+    return {
         "Kazim": [
             "Rajat Patidar", "Devdutt Padikkal", "Shimron Hetmyer", "Dhruv Jurel",
             "Vaibhav Suryavanshi", "Priyansh Arya", "Ryan Rickelton", "Aiden Markram",
@@ -237,31 +347,6 @@ def load_db():
             "Varun Chakaravarthy", "Lungi Ngidi", "Jason Holder", "Mitchell Starc",
         ],
     }
-    initial_pools = excel_pools
-    if not os.path.exists(DB_FILE):
-        return {"selections": {}, "scores": {}, "pools": excel_pools, "player_master": pm}
-    try:
-        with open(DB_FILE, 'r') as f:
-            content = f.read().strip()
-        if not content:
-            raise ValueError("Empty file")
-        db = json.loads(content)
-        # Always sync player_master from code so role/team edits take effect immediately
-        db["player_master"] = pm
-        # Ensure all required keys exist (defensive for old DB versions)
-        db.setdefault("selections", {})
-        db.setdefault("scores", {})
-        db.setdefault("pools", excel_pools)
-        return db
-    except Exception as e:
-        # JSON corrupted — back it up and start fresh (keeps pool structure)
-        try:
-            import shutil, time
-            shutil.copy(DB_FILE, DB_FILE + f".bak_{int(time.time())}")
-        except Exception:
-            pass
-        st.error(f"⚠️ Database file was corrupted ({e}). A backup was saved. Starting with empty data.")
-        return {"selections": {}, "scores": {}, "pools": excel_pools, "player_master": pm}
 
 def save_db(data):
     """Atomic write — write to temp file then rename to avoid corruption on crash."""
