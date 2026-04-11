@@ -348,19 +348,6 @@ def _build_excel_pools():
         ],
     }
 
-def save_db(data):
-    """Atomic write — write to temp file then rename to avoid corruption on crash."""
-    tmp = DB_FILE + ".tmp"
-    try:
-        with open(tmp, 'w') as f:
-            json.dump(data, f)
-        os.replace(tmp, DB_FILE)   # atomic on all POSIX systems
-    except Exception as e:
-        # Fallback to direct write if rename fails (e.g. cross-device)
-        with open(DB_FILE, 'w') as f:
-            json.dump(data, f)
-
-
 import re, requests
 from difflib import SequenceMatcher
 
@@ -695,6 +682,23 @@ st.markdown('<div class="main-subtitle">Pick Your XI · Rule the Season · Outsm
 st.markdown('<div class="pitch-divider"></div>', unsafe_allow_html=True)
 
 db = load_db()
+
+# ── Storage status banner — always visible so you know if data is safe ────────
+if USE_GIST:
+    st.sidebar.markdown(
+        '<div style="background:rgba(76,175,80,0.15);border:1px solid rgba(76,175,80,0.40);'
+        'border-radius:6px;padding:6px 10px;margin-bottom:8px;font-family:\'Rajdhani\',sans-serif;'
+        'font-size:12px;color:#a5d6a7;">🟢 <b>Gist connected</b> — data is persistent</div>',
+        unsafe_allow_html=True
+    )
+else:
+    st.sidebar.markdown(
+        '<div style="background:rgba(244,67,54,0.20);border:1px solid rgba(244,67,54,0.50);'
+        'border-radius:6px;padding:6px 10px;margin-bottom:8px;font-family:\'Rajdhani\',sans-serif;'
+        'font-size:12px;color:#ef9a9a;">🔴 <b>Gist NOT set up</b> — data will vanish on restart!<br>'
+        '<span style="font-size:10px;">Go to App Settings → Secrets → add GIST_TOKEN + GIST_ID</span></div>',
+        unsafe_allow_html=True
+    )
 
 def calc_points(scores_dict, match_ids):
     total = 0.0
@@ -1085,6 +1089,8 @@ with t_admin:
     st.markdown('<div class="admin-box">', unsafe_allow_html=True)
     reset_confirm = st.checkbox("☢️ Confirm: Permanently delete ALL selections and scores.")
     if reset_confirm and st.button("💣  CLEAR ALL DATA", type="primary"):
+        empty = {"selections": {}, "scores": {}, "pools": _build_excel_pools(), "player_master": _build_player_master()}
+        save_db(empty)  # wipes gist AND local file
         if os.path.exists(DB_FILE): os.remove(DB_FILE)
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
